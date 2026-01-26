@@ -9,9 +9,7 @@ import android.view.accessibility.AccessibilityEvent;
 public class SmartEnterAccessibilityService extends AccessibilityService {
 
     @Override
-    public void onAccessibilityEvent(AccessibilityEvent event) {
-        // Not used
-    }
+    public void onAccessibilityEvent(AccessibilityEvent event) {}
 
     @Override
     public boolean onKeyEvent(KeyEvent event) {
@@ -19,24 +17,17 @@ public class SmartEnterAccessibilityService extends AccessibilityService {
         if (event.getKeyCode() != KeyEvent.KEYCODE_ENTER) return false;
         if (event.isShiftPressed()) return false;
 
-        // FAST fixed-coordinate tap
         Path path = new Path();
-        path.moveTo(990, 2313); // YOUR coordinates
+        path.moveTo(990, 2313);
 
         GestureDescription gesture = new GestureDescription.Builder()
-                .addStroke(new GestureDescription.StrokeDescription(
-                        path,
-                        0,
-                        50
-                ))
-                .build();
+            .addStroke(new GestureDescription.StrokeDescription(path, 0, 50))
+            .build();
 
         dispatchGesture(gesture, null, null);
         return true;
     }
 
     @Override
-    public void onInterrupt() {
-        // Not used
-    }
+    public void onInterrupt() {}
 }
