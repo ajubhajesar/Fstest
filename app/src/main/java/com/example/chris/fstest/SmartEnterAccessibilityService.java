@@ -2,72 +2,41 @@ package com.example.chris.fstest;
 
 import android.accessibilityservice.AccessibilityService;
 import android.accessibilityservice.GestureDescription;
-import android.app.Notification;
-import android.app.NotificationChannel;
-import android.app.NotificationManager;
 import android.content.res.Configuration;
 import android.graphics.Path;
-import android.os.Build;
 import android.view.KeyEvent;
 import android.view.accessibility.AccessibilityEvent;
 
 public class SmartEnterAccessibilityService extends AccessibilityService {
 
-    private static final String CHANNEL_ID = "keyboard_status";
-    private static final int NOTIF_ID = 1001;
-    private boolean keyboardActive = false;
-
     @Override
-    public void onAccessibilityEvent(AccessibilityEvent event) {
-        updateKeyboardState();
-    }
+    public void onAccessibilityEvent(AccessibilityEvent event) {}
 
     @Override
     public boolean onKeyEvent(KeyEvent event) {
-        if (!keyboardActive) return false;
-        if (event.getAction() != KeyEvent.ACTION_UP) return false;
+        // Only act when a hardware keyboard is attached
+        if (getResources().getConfiguration().keyboard != Configuration.KEYBOARD_QWERTY) return false;
+
+        // Only intercept Enter key
         if (event.getKeyCode() != KeyEvent.KEYCODE_ENTER) return false;
+
+        // Allow Shift+Enter to pass through (newline)
         if (event.isShiftPressed()) return false;
 
-        Path path = new Path();
-        path.moveTo(990, 2313);
+        // Trigger ONLY once per physical press (Key Mapper style)
+        if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) {
+            Path path = new Path();
+            path.moveTo(990, 2313);
 
-        GestureDescription gesture = new GestureDescription.Builder()
-            .addStroke(new GestureDescription.StrokeDescription(path, 0, 50))
-            .build();
-
-        dispatchGesture(gesture, null, null);
-        return true;
-    }
-
-    private void updateKeyboardState() {
-        boolean nowActive = getResources().getConfiguration().keyboard == Configuration.KEYBOARD_QWERTY;
-
-        if (nowActive == keyboardActive) return;
-        keyboardActive = nowActive;
-
-        NotificationManager nm = getSystemService(NotificationManager.class);
-
-        if (nowActive) {
-            if (Build.VERSION.SDK_INT >= 26) {
-                NotificationChannel ch = new NotificationChannel(
-                    CHANNEL_ID, "Keyboard Status",
-                    NotificationManager.IMPORTANCE_LOW
-                );
-                nm.createNotificationChannel(ch);
-            }
-
-            Notification n = new Notification.Builder(this, CHANNEL_ID)
-                .setContentTitle("Keyboard active")
-                .setContentText("Enter = Send")
-                .setSmallIcon(android.R.drawable.ic_input_add)
-                .setOngoing(true)
+            GestureDescription gesture = new GestureDescription.Builder()
+                .addStroke(new GestureDescription.StrokeDescription(path, 0, 40))
                 .build();
 
-            nm.notify(NOTIF_ID, n);
-        } else {
-            nm.cancel(NOTIF_ID);
+            dispatchGesture(gesture, null, null);
         }
+
+        // ALWAYS consume Enter so the app never receives it
+        return true;
     }
 
     @Override
