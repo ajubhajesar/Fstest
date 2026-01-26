@@ -1,6 +1,7 @@
 package com.example.chris.fstest;
 
 import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Build;
 import android.os.Bundle;
@@ -57,8 +58,10 @@ public class MainActivity extends AppCompatActivity {
         new AlertDialog.Builder(this)
             .setTitle("Enable Accessibility")
             .setMessage("Accessibility is required for Enter-to-Send to work.")
-            .setPositiveButton("Enable", (d, w) -> {
-                startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));
+            .setPositiveButton("Enable", new DialogInterface.OnClickListener() {
+                @Override public void onClick(DialogInterface d, int w) {
+                    startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));
+                }
             })
             .setNegativeButton("Cancel", null)
             .show();
@@ -68,10 +71,12 @@ public class MainActivity extends AppCompatActivity {
         new AlertDialog.Builder(this)
             .setTitle("Enable Notifications")
             .setMessage("Notifications show when Enter-to-Send is active.")
-            .setPositiveButton("Allow", (d, w) -> {
-                Intent i = new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS);
-                i.putExtra(Settings.EXTRA_APP_PACKAGE, getPackageName());
-                startActivity(i);
+            .setPositiveButton("Allow", new DialogInterface.OnClickListener() {
+                @Override public void onClick(DialogInterface d, int w) {
+                    Intent i = new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS);
+                    i.putExtra(Settings.EXTRA_APP_PACKAGE, getPackageName());
+                    startActivity(i);
+                }
             })
             .setNegativeButton("Later", null)
             .show();
