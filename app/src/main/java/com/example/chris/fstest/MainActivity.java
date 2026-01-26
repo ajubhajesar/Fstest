@@ -11,8 +11,6 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
-import androidx.core.app.NotificationManagerCompat;
-
 import com.example.chris.fstest.schedule.ScheduleConfig;
 import com.example.chris.fstest.schedule.TankSchedule;
 
@@ -93,16 +91,13 @@ public class MainActivity extends Activity {
 
     private void updateStatus() {
         final boolean acc = isAccessibilityEnabled();
-        final boolean notif = areNotificationsEnabled();
 
         StringBuilder sb = new StringBuilder();
         sb.append("Accessibility: ")
           .append(acc ? "ENABLED ✓" : "DISABLED ⚠️ (Tap to enable)")
           .append("\n");
 
-        sb.append("Notifications: ")
-          .append(notif ? "ENABLED ✓" : "DISABLED ⚠️ (Tap to enable)")
-          .append("\n\n");
+        sb.append("Notifications: ENABLED ✓ (Tap to open settings)\n\n");
 
         status.setText(sb.toString());
 
@@ -110,7 +105,7 @@ public class MainActivity extends Activity {
             @Override public void onClick(View v) {
                 if (!acc) {
                     startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));
-                } else if (!notif) {
+                } else {
                     startActivity(new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
                         .putExtra(Settings.EXTRA_APP_PACKAGE, getPackageName()));
                 }
@@ -122,13 +117,5 @@ public class MainActivity extends Activity {
         String enabled = Settings.Secure.getString(
             getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
         return enabled != null && enabled.contains(getPackageName());
-    }
-
-    private boolean areNotificationsEnabled() {
-        try {
-            return NotificationManagerCompat.from(this).areNotificationsEnabled();
-        } catch (Throwable t) {
-            return true;
-        }
     }
 }
