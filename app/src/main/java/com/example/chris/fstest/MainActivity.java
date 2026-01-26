@@ -4,13 +4,14 @@ import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
 import android.provider.Settings;
-import android.text.TextUtils;
 import android.view.View;
 import android.widget.CheckBox;
 import android.widget.CompoundButton;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
+
+import androidx.core.app.NotificationManagerCompat;
 
 import com.example.chris.fstest.schedule.ScheduleConfig;
 import com.example.chris.fstest.schedule.TankSchedule;
@@ -91,11 +92,10 @@ public class MainActivity extends Activity {
     }
 
     private void updateStatus() {
-        boolean acc = isAccessibilityEnabled();
-        boolean notif = areNotificationsEnabled();
+        final boolean acc = isAccessibilityEnabled();
+        final boolean notif = areNotificationsEnabled();
 
         StringBuilder sb = new StringBuilder();
-
         sb.append("Accessibility: ")
           .append(acc ? "ENABLED ✓" : "DISABLED ⚠️ (Tap to enable)")
           .append("\n");
@@ -125,8 +125,10 @@ public class MainActivity extends Activity {
     }
 
     private boolean areNotificationsEnabled() {
-        return getApplicationInfo().targetSdkVersion < 33 ||
-               checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
-               == android.content.pm.PackageManager.PERMISSION_GRANTED;
+        try {
+            return NotificationManagerCompat.from(this).areNotificationsEnabled();
+        } catch (Throwable t) {
+            return true;
+        }
     }
 }
