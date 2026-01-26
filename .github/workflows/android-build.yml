@@ -13,14 +13,22 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Set up JDK 8 (for Gradle 4.4)
+      # Java 17 ONLY for Android SDK tools
+      - name: Set up JDK 17 (for sdkmanager)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      # Switch back to Java 8 for Gradle 4.4
+      - name: Switch to JDK 8 (for Gradle)
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 8
-
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
 
       - name: Grant execute permission to gradlew
         run: chmod +x gradlew
