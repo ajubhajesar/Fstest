@@ -1,16 +1,14 @@
 package com.example.chris.fstest;
 
+import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.widget.TextView;
 
-import androidx.appcompat.app.AppCompatActivity;
-
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends Activity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -22,17 +20,13 @@ public class MainActivity extends AppCompatActivity {
         setContentView(tv);
 
         boolean accessibilityEnabled = isAccessibilityEnabled();
-        boolean notificationEnabled = isNotificationEnabled();
 
         tv.setText(
-            "Accessibility: " + (accessibilityEnabled ? "ENABLED" : "DISABLED") + "\\n"
-          + "Notifications: " + (notificationEnabled ? "ENABLED" : "DISABLED")
+            "Accessibility: " + (accessibilityEnabled ? "ENABLED" : "DISABLED")
         );
 
         if (!accessibilityEnabled) {
             showAccessibilityDialog();
-        } else if (!notificationEnabled) {
-            showNotificationDialog();
         }
     }
 
@@ -48,12 +42,6 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private boolean isNotificationEnabled() {
-        if (Build.VERSION.SDK_INT < 33) return true;
-        return checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
-                == android.content.pm.PackageManager.PERMISSION_GRANTED;
-    }
-
     private void showAccessibilityDialog() {
         new AlertDialog.Builder(this)
             .setTitle("Enable Accessibility")
@@ -64,21 +52,6 @@ public class MainActivity extends AppCompatActivity {
                 }
             })
             .setNegativeButton("Cancel", null)
-            .show();
-    }
-
-    private void showNotificationDialog() {
-        new AlertDialog.Builder(this)
-            .setTitle("Enable Notifications")
-            .setMessage("Notifications show when Enter-to-Send is active.")
-            .setPositiveButton("Allow", new DialogInterface.OnClickListener() {
-                @Override public void onClick(DialogInterface d, int w) {
-                    Intent i = new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS);
-                    i.putExtra(Settings.EXTRA_APP_PACKAGE, getPackageName());
-                    startActivity(i);
-                }
-            })
-            .setNegativeButton("Later", null)
             .show();
     }
 }
