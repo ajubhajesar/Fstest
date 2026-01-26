@@ -1,57 +1,79 @@
 package com.example.chris.fstest;
 
 import android.app.Activity;
-import android.app.AlertDialog;
-import android.content.DialogInterface;
-import android.content.Intent;
 import android.os.Bundle;
-import android.provider.Settings;
+import android.widget.CheckBox;
+import android.widget.CompoundButton;
+import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
+
+import com.example.chris.fstest.schedule.ScheduleConfig;
+import com.example.chris.fstest.schedule.TankSchedule;
+
+import java.util.Calendar;
 
 public class MainActivity extends Activity {
 
+    private TextView output;
+
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
+    protected void onCreate(Bundle b) {
+        super.onCreate(b);
 
-        TextView tv = new TextView(this);
-        tv.setPadding(40, 40, 40, 40);
-        tv.setTextSize(16f);
-        setContentView(tv);
+        ScrollView sv = new ScrollView(this);
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(40,40,40,40);
 
-        boolean accessibilityEnabled = isAccessibilityEnabled();
+        CheckBox tankFill = new CheckBox(this);
+        tankFill.setText("Tank Fill Today");
+        tankFill.setChecked(ScheduleConfig.tankFillToday(this));
 
-        tv.setText(
-            "Accessibility: " + (accessibilityEnabled ? "ENABLED" : "DISABLED")
-        );
+        CheckBox swap = new CheckBox(this);
+        swap.setText("Force MF / Society Swap");
+        swap.setChecked(ScheduleConfig.forceSwapMF(this));
 
-        if (!accessibilityEnabled) {
-            showAccessibilityDialog();
-        }
+        output = new TextView(this);
+        output.setTextSize(15f);
+
+        tankFill.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override public void onCheckedChanged(CompoundButton b, boolean c) {
+                ScheduleConfig.setTankFillToday(MainActivity.this, c);
+                refresh();
+            }
+        });
+
+        swap.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override public void onCheckedChanged(CompoundButton b, boolean c) {
+                ScheduleConfig.setForceSwapMF(MainActivity.this, c);
+                refresh();
+            }
+        });
+
+        root.addView(tankFill);
+        root.addView(swap);
+        root.addView(output);
+        sv.addView(root);
+        setContentView(sv);
+
+        refresh();
     }
 
-    private boolean isAccessibilityEnabled() {
-        try {
-            String enabled = Settings.Secure.getString(
-                getContentResolver(),
-                Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
-            );
-            return enabled != null && enabled.contains(getPackageName());
-        } catch (Exception e) {
-            return false;
-        }
-    }
+    private void refresh() {
+        Calendar today = Calendar.getInstance();
+        Calendar tomorrow = (Calendar) today.clone();
+        tomorrow.add(Calendar.DAY_OF_MONTH, 1);
 
-    private void showAccessibilityDialog() {
-        new AlertDialog.Builder(this)
-            .setTitle("Enable Accessibility")
-            .setMessage("Accessibility is required for Enter-to-Send to work.")
-            .setPositiveButton("Enable", new DialogInterface.OnClickListener() {
-                @Override public void onClick(DialogInterface d, int w) {
-                    startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));
-                }
-            })
-            .setNegativeButton("Cancel", null)
-            .show();
+        boolean tf = ScheduleConfig.tankFillToday(this);
+        boolean fs = ScheduleConfig.forceSwapMF(this);
+
+        String text =
+            "📅 TODAY\\n" +
+            TankSchedule.build(today, tf, fs) +
+            "\\n\\n📅 TOMORROW\\n" +
+            TankSchedule.build(tomorrow, tf, fs);
+
+        output.setText(text);
     }
 }
