@@ -39,6 +39,12 @@ public class MainActivity extends Activity {
         swap.setText("Force MF / Society Swap");
 
         web = new WebView(this);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            0
+        );
+        lp.weight = 1;
+        web.setLayoutParams(lp);
         WebSettings ws = web.getSettings();
         ws.setJavaScriptEnabled(false);
         ws.setDefaultTextEncodingName("utf-8");
