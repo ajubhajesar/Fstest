@@ -27,10 +27,10 @@ public class MainActivity extends Activity {
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(30,30,30,30);
+        root.setPadding(30, 30, 30, 30);
 
         status = new TextView(this);
-        status.setPadding(0,0,0,20);
+        status.setPadding(0, 0, 0, 20);
 
         final CheckBox tankFill = new CheckBox(this);
         tankFill.setText("Tank Fill Today");
@@ -39,15 +39,14 @@ public class MainActivity extends Activity {
         swap.setText("Force MF / Society Swap");
 
         web = new WebView(this);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT,
-            0
-        );
-        lp.weight = 1;
-        web.setLayoutParams(lp);
         WebSettings ws = web.getSettings();
         ws.setJavaScriptEnabled(false);
         ws.setDefaultTextEncodingName("utf-8");
+
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 0);
+        lp.weight = 1;
+        web.setLayoutParams(lp);
 
         tankFill.setChecked(ScheduleConfig.tankFillToday(this));
         swap.setChecked(ScheduleConfig.forceSwapMF(this));
@@ -90,47 +89,53 @@ public class MainActivity extends Activity {
             "<style>" +
             "body{font-family:sans-serif;padding:10px;}" +
             "h2{margin-top:20px;}" +
-            ".slot{padding:8px;margin:6px 0;border-radius:6px;background:#f2f2f2;}" +
+            ".slot{padding:10px;margin:8px 0;border-radius:6px;background:#f2f2f2;}" +
             ".active{background:#c8f7c5;font-weight:bold;}" +
             "</style></head><body>" +
-            buildDay("TODAY", today, tf, fs) +
-            buildDay("TOMORROW", tomorrow, tf, fs) +
+            buildDay(\"આજે\", today, tf, fs) +
+            buildDay(\"કાલે\", tomorrow, tf, fs) +
             "</body></html>";
 
         web.loadDataWithBaseURL(null, html, "text/html", "utf-8", null);
     }
 
     private String buildDay(String title, Calendar day, boolean tf, boolean fs) {
-        int d = day.get(Calendar.DAY_OF_MONTH);
-        boolean firstHalf = d <= 15;
+        Calendar now = Calendar.getInstance();
+        int nowMin = now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE);
+        boolean isToday = title.equals("આજે");
 
-        String source = firstHalf ? "બોરવેલ" : "નર્મદા";
+        String source = "બોરવેલ";
         if (fs) source = "નર્મદા";
 
         StringBuilder sb = new StringBuilder();
         sb.append("<h2>").append(title).append("</h2>");
-        sb.append("<div>Source: ").append(source).append("</div>");
+        sb.append("<div><b>સ્ત્રોત:</b> ").append(source).append("</div>");
 
-        sb.append(slot("Morning", "06:00 - 07:30"));
-        sb.append(slot("Afternoon", "13:00 - 14:30"));
+        if (tf && isToday) {
+            sb.append("<div class='slot' style='background:#ffe6b3;font-weight:bold;'>🚰 ટાંકી ભરવાનું કાર્ય</div>");
+        }
 
-        if (tf) sb.append("<div class=slot>🚰 Tank Fill Mode</div>");
+        sb.append(slot("સવાર", 360, 450, nowMin, isToday));
+        sb.append(slot("બપોર", 780, 870, nowMin, isToday));
 
         return sb.toString();
     }
 
-    private String slot(String name, String time) {
-        return "<div class=slot><b>" + name + "</b><br/>" + time + "</div>";
+    private String slot(String name, int start, int end, int nowMin, boolean activeDay) {
+        boolean active = activeDay && nowMin >= start && nowMin <= end;
+        String cls = active ? "slot active" : "slot";
+        return "<div class='" + cls + "'><b>" + name + "</b><br/>" +
+               (start/60) + ":00 - " + (end/60) + ":30</div>";
     }
 
     private void updateStatus() {
         final boolean acc = isAccessibilityEnabled();
+        status.setText(
+            "Accessibility: " + (acc ? "ENABLED ✓" : "DISABLED ⚠️ (Tap)") + "\n" +
+            "Notifications: ENABLED ✓"
+        );
+        status.setLineSpacing(0, 1.3f);
 
-        String text =
-            "Accessibility: " + (acc ? "ENABLED ✓" : "DISABLED ⚠️ (Tap)") + "\\n" +
-            "Notifications: ENABLED ✓ (Tap)";
-
-        status.setText(text);
         status.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {
                 if (!acc) {
@@ -145,7 +150,8 @@ public class MainActivity extends Activity {
 
     private boolean isAccessibilityEnabled() {
         String enabled = Settings.Secure.getString(
-            getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
+                getContentResolver(),
+                Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
         return enabled != null && enabled.contains(getPackageName());
     }
 }
