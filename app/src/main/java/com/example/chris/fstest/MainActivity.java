@@ -43,8 +43,9 @@ public class MainActivity extends Activity {
         ws.setJavaScriptEnabled(false);
         ws.setDefaultTextEncodingName("utf-8");
 
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, 0);
+        LinearLayout.LayoutParams lp =
+                new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT, 0);
         lp.weight = 1;
         web.setLayoutParams(lp);
 
@@ -85,16 +86,16 @@ public class MainActivity extends Activity {
         boolean fs = ScheduleConfig.forceSwapMF(this);
 
         String html =
-            "<html><head><meta charset=utf-8>" +
-            "<style>" +
-            "body{font-family:sans-serif;padding:10px;}" +
-            "h2{margin-top:20px;}" +
-            ".slot{padding:10px;margin:8px 0;border-radius:6px;background:#f2f2f2;}" +
-            ".active{background:#c8f7c5;font-weight:bold;}" +
-            "</style></head><body>" +
-            buildDay(\"આજે\", today, tf, fs) +
-            buildDay(\"કાલે\", tomorrow, tf, fs) +
-            "</body></html>";
+                "<html><head><meta charset='utf-8'>" +
+                "<style>" +
+                "body{font-family:sans-serif;padding:10px;}" +
+                "h2{margin-top:20px;}" +
+                ".slot{padding:10px;margin:8px 0;border-radius:6px;background:#f2f2f2;}" +
+                ".active{background:#c8f7c5;font-weight:bold;}" +
+                "</style></head><body>" +
+                buildDay("આજે", today, tf, fs) +
+                buildDay("કાલે", tomorrow, tf, fs) +
+                "</body></html>";
 
         web.loadDataWithBaseURL(null, html, "text/html", "utf-8", null);
     }
@@ -125,14 +126,14 @@ public class MainActivity extends Activity {
         boolean active = activeDay && nowMin >= start && nowMin <= end;
         String cls = active ? "slot active" : "slot";
         return "<div class='" + cls + "'><b>" + name + "</b><br/>" +
-               (start/60) + ":00 - " + (end/60) + ":30</div>";
+                (start / 60) + ":00 - " + (end / 60) + ":30</div>";
     }
 
     private void updateStatus() {
         final boolean acc = isAccessibilityEnabled();
         status.setText(
-            "Accessibility: " + (acc ? "ENABLED ✓" : "DISABLED ⚠️ (Tap)") + "\n" +
-            "Notifications: ENABLED ✓"
+                "Accessibility: " + (acc ? "ENABLED ✓" : "DISABLED ⚠️ (Tap)") + "\n" +
+                "Notifications: ENABLED ✓"
         );
         status.setLineSpacing(0, 1.3f);
 
@@ -142,7 +143,7 @@ public class MainActivity extends Activity {
                     startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));
                 } else {
                     startActivity(new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
-                        .putExtra(Settings.EXTRA_APP_PACKAGE, getPackageName()));
+                            .putExtra(Settings.EXTRA_APP_PACKAGE, getPackageName()));
                 }
             }
         });
