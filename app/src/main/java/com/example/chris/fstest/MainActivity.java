@@ -9,11 +9,8 @@ import android.webkit.WebView;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Button;
-
-import java.util.Calendar;
-import java.util.ArrayList;
-import java.util.List;
-import java.text.SimpleDateFormat;
+import android.widget.CompoundButton;
+import android.view.View;
 
 public class MainActivity extends Activity {
 
@@ -39,33 +36,38 @@ public class MainActivity extends Activity {
         Button accBtn = (Button) findViewById(R.id.btnAcc);
         Button notifBtn = (Button) findViewById(R.id.btnNotif);
 
-        final SharedPreferences p = getSharedPreferences(PREFS, MODE_PRIVATE);
+        final SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
 
-        tankSwitch.setChecked(p.getBoolean(KEY_TANK, false));
-        swapSwitch.setChecked(p.getBoolean(KEY_SWAP, false));
+        tankSwitch.setChecked(prefs.getBoolean(KEY_TANK, false));
+        swapSwitch.setChecked(prefs.getBoolean(KEY_SWAP, false));
 
-        tankSwitch.setOnCheckedChangeListener(new Switch.OnCheckedChangeListener() {
-            public void onCheckedChanged(android.widget.CompoundButton b, boolean v) {
-                p.edit().putBoolean(KEY_TANK, v).apply();
+        tankSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            public void onCheckedChanged(CompoundButton b, boolean v) {
+                prefs.edit().putBoolean(KEY_TANK, v).apply();
                 render();
             }
         });
 
-        swapSwitch.setOnCheckedChangeListener(new Switch.OnCheckedChangeListener() {
-            public void onCheckedChanged(android.widget.CompoundButton b, boolean v) {
-                p.edit().putBoolean(KEY_SWAP, v).apply();
+        swapSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            public void onCheckedChanged(CompoundButton b, boolean v) {
+                prefs.edit().putBoolean(KEY_SWAP, v).apply();
                 render();
             }
         });
 
-        accBtn.setOnClickListener(v ->
-            startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-        );
+        accBtn.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));
+            }
+        });
 
-        notifBtn.setOnClickListener(v ->
-            startActivity(new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
-                .putExtra(Settings.EXTRA_APP_PACKAGE, getPackageName()))
-        );
+        notifBtn.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                Intent i = new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS);
+                i.putExtra(Settings.EXTRA_APP_PACKAGE, getPackageName());
+                startActivity(i);
+            }
+        });
 
         render();
     }
@@ -78,26 +80,25 @@ public class MainActivity extends Activity {
     private void updateStatus() {
         boolean acc = false;
         try {
-            acc = Settings.Secure.getInt(getContentResolver(),
-                    Settings.Secure.ACCESSIBILITY_ENABLED) == 1;
+            acc = Settings.Secure.getInt(
+                    getContentResolver(),
+                    Settings.Secure.ACCESSIBILITY_ENABLED
+            ) == 1;
         } catch (Exception e) {}
 
         accStatus.setText("Accessibility: " + (acc ? "ENABLED ✓" : "DISABLED ⚠"));
-
         notifStatus.setText("Notifications: ENABLED ✓");
     }
 
     private String buildHtml() {
-        Calendar now = Calendar.getInstance();
-        boolean tank = getSharedPreferences(PREFS, MODE_PRIVATE)
-                .getBoolean(KEY_TANK, false);
-        boolean swap = getSharedPreferences(PREFS, MODE_PRIVATE)
-                .getBoolean(KEY_SWAP, false);
+        SharedPreferences p = getSharedPreferences(PREFS, MODE_PRIVATE);
+        boolean tank = p.getBoolean(KEY_TANK, false);
+        boolean swap = p.getBoolean(KEY_SWAP, false);
 
         String todaySrc = swap ? "નર્મદા" : "બોરવેલ";
         String tomSrc = swap ? "બોરવેલ" : "નર્મદા";
 
-        return "<html><body style=padding:16px;font-family:sans-serif>" +
+        return "<html><body style=\"font-family:sans-serif;padding:16px\">" +
                 "<h2>📅 આજે</h2>" +
                 "<b>Source:</b> " + todaySrc +
                 "<ul>" +
