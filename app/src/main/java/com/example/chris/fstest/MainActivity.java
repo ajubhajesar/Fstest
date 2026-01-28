@@ -2,15 +2,10 @@ package com.example.chris.fstest;
 
 import android.app.Activity;
 import android.os.Bundle;
-import android.provider.Settings;
-import android.content.Intent;
-import android.content.SharedPreferences;
 import android.webkit.WebView;
 import android.widget.Switch;
-import android.widget.TextView;
-import android.widget.Button;
 import android.widget.CompoundButton;
-import android.view.View;
+import android.content.SharedPreferences;
 
 public class MainActivity extends Activity {
 
@@ -18,9 +13,7 @@ public class MainActivity extends Activity {
     private static final String KEY_TANK = "TANK_FILL_TODAY";
     private static final String KEY_SWAP = "MF_SOCIETY_FORCE_SWAP";
 
-    WebView web;
-    Switch tankSwitch, swapSwitch;
-    TextView accStatus, notifStatus;
+    private WebView web;
 
     @Override
     protected void onCreate(Bundle b) {
@@ -28,44 +21,25 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
 
         web = (WebView) findViewById(R.id.webView);
-        tankSwitch = (Switch) findViewById(R.id.switchTank);
-        swapSwitch = (Switch) findViewById(R.id.switchSwap);
-        accStatus = (TextView) findViewById(R.id.textAcc);
-        notifStatus = (TextView) findViewById(R.id.textNotif);
+        final Switch tank = (Switch) findViewById(R.id.switchTank);
+        final Switch swap = (Switch) findViewById(R.id.switchSwap);
 
-        Button accBtn = (Button) findViewById(R.id.btnAcc);
-        Button notifBtn = (Button) findViewById(R.id.btnNotif);
+        final SharedPreferences p = getSharedPreferences(PREFS, MODE_PRIVATE);
 
-        final SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+        tank.setChecked(p.getBoolean(KEY_TANK, false));
+        swap.setChecked(p.getBoolean(KEY_SWAP, false));
 
-        tankSwitch.setChecked(prefs.getBoolean(KEY_TANK, false));
-        swapSwitch.setChecked(prefs.getBoolean(KEY_SWAP, false));
-
-        tankSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+        tank.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             public void onCheckedChanged(CompoundButton b, boolean v) {
-                prefs.edit().putBoolean(KEY_TANK, v).apply();
+                p.edit().putBoolean(KEY_TANK, v).apply();
                 render();
             }
         });
 
-        swapSwitch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+        swap.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             public void onCheckedChanged(CompoundButton b, boolean v) {
-                prefs.edit().putBoolean(KEY_SWAP, v).apply();
+                p.edit().putBoolean(KEY_SWAP, v).apply();
                 render();
-            }
-        });
-
-        accBtn.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));
-            }
-        });
-
-        notifBtn.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                Intent i = new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS);
-                i.putExtra(Settings.EXTRA_APP_PACKAGE, getPackageName());
-                startActivity(i);
             }
         });
 
@@ -73,50 +47,38 @@ public class MainActivity extends Activity {
     }
 
     private void render() {
-        updateStatus();
-        web.loadData(buildHtml(), "text/html; charset=utf-8", "utf-8");
-    }
-
-    private void updateStatus() {
-        boolean acc = false;
-        try {
-            acc = Settings.Secure.getInt(
-                    getContentResolver(),
-                    Settings.Secure.ACCESSIBILITY_ENABLED
-            ) == 1;
-        } catch (Exception e) {}
-
-        accStatus.setText("Accessibility: " + (acc ? "ENABLED ✓" : "DISABLED ⚠"));
-        notifStatus.setText("Notifications: ENABLED ✓");
-    }
-
-    private String buildHtml() {
         SharedPreferences p = getSharedPreferences(PREFS, MODE_PRIVATE);
-        boolean tank = p.getBoolean(KEY_TANK, false);
-        boolean swap = p.getBoolean(KEY_SWAP, false);
 
-        String todaySrc = swap ? "નર્મદા" : "બોરવેલ";
-        String tomSrc = swap ? "બોરવેલ" : "નર્મદા";
+        ScheduleData.DaySchedule today =
+                ScheduleData.today(
+                        p.getBoolean(KEY_TANK, false),
+                        p.getBoolean(KEY_SWAP, false)
+                );
 
-        return "<html><body style=\"font-family:sans-serif;padding:16px\">" +
-                "<h2>📅 આજે</h2>" +
-                "<b>Source:</b> " + todaySrc +
-                "<ul>" +
-                slot("06:00 – 07:30", tank ? "ટાંકી ભરાઈ રહી છે" : "યાદવ નગરી + ચૌધરી ફરીયો") +
-                slot("07:30 – 09:00", "મફત નગરી") +
-                slot("09:00 – 12:00", "બાકીનો વિસ્તાર") +
-                "</ul>" +
-                "<h2>📅 આવતીકાલે</h2>" +
-                "<b>Source:</b> " + tomSrc +
-                "<ul>" +
-                slot("06:00 – 07:30", "યાદવ નગરી + મફત નગરી") +
-                slot("07:30 – 09:00", "સોસાયટી") +
-                slot("09:00 – 12:00", "બાકીનો વિસ્તાર") +
-                "</ul>" +
-                "</body></html>";
+        ScheduleData.DaySchedule tomorrow =
+                ScheduleData.tomorrow(
+                        p.getBoolean(KEY_SWAP, false)
+                );
+
+        StringBuilder h = new StringBuilder();
+        h.append("<html><body style=\"font-family:sans-serif;padding:16px\">");
+
+        renderDay(h, today);
+        renderDay(h, tomorrow);
+
+        h.append("</body></html>");
+
+        web.loadDataWithBaseURL(null, h.toString(), "text/html", "utf-8", null);
     }
 
-    private String slot(String t, String l) {
-        return "<li><b>" + t + "</b> — " + l + "</li>";
+    private void renderDay(StringBuilder h, ScheduleData.DaySchedule d) {
+        h.append("<h2>").append(d.title).append("</h2>");
+        h.append("<b>પાણીનો સ્ત્રોત:</b> ").append(d.source).append("<br/><br/>");
+
+        for (int i = 0; i < d.slots.size(); i++) {
+            ScheduleData.Slot s = d.slots.get(i);
+            h.append("<b>").append(s.time).append("</b><br/>");
+            h.append(s.area).append("<br/><br/>");
+        }
     }
 }
