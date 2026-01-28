@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.os.Bundle;
 import android.webkit.WebView;
 import android.widget.CheckBox;
+import android.widget.CompoundButton;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 
@@ -11,6 +12,7 @@ public class MainActivity extends Activity {
 
     private boolean tankFillToday = false;
     private boolean forceSwap = false;
+    private WebView web;
 
     @Override
     protected void onCreate(Bundle b) {
@@ -29,24 +31,30 @@ public class MainActivity extends Activity {
         swap.setText("Force MF / Society Swap");
         root.addView(swap);
 
-        WebView web = new WebView(this);
+        web = new WebView(this);
         root.addView(web);
 
-        tank.setOnCheckedChangeListener((a, v) -> {
-            tankFillToday = v;
-            render(web);
+        tank.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton b, boolean v) {
+                tankFillToday = v;
+                render();
+            }
         });
 
-        swap.setOnCheckedChangeListener((a, v) -> {
-            forceSwap = v;
-            render(web);
+        swap.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton b, boolean v) {
+                forceSwap = v;
+                render();
+            }
         });
 
         setContentView(scroll);
-        render(web);
+        render();
     }
 
-    private void render(WebView web) {
+    private void render() {
         ScheduleData.DaySchedule today =
             ScheduleData.today(forceSwap);
         ScheduleData.DaySchedule tomorrow =
@@ -72,7 +80,8 @@ public class MainActivity extends Activity {
             s.append("<div style=color:#b35c00;font-weight:bold;margin-top:6px>🚰 ટાંકી ભરવાનું કાર્ય</div>");
         }
 
-        for (ScheduleData.Slot sl : d.slots) {
+        for (int i = 0; i < d.slots.size(); i++) {
+            ScheduleData.Slot sl = d.slots.get(i);
             s.append("<div style=margin-top:10px>");
             s.append("<b>").append(sl.time).append("</b><br/>");
             s.append(sl.area);
