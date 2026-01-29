@@ -130,14 +130,14 @@ public class KeyboardHelperService extends AccessibilityService
         Notification n;
         if (Build.VERSION.SDK_INT >= 26) {
             n = new Notification.Builder(this, CH_ID)
-                    .setSmallIcon(android.R.drawable.stat_sys_keyboard)
+                    .setSmallIcon(android.R.drawable.ic_input_get)
                     .setContentTitle("Keyboard Helper")
                     .setContentText(text)
                     .setOngoing(false)
                     .build();
         } else {
             n = new Notification.Builder(this)
-                    .setSmallIcon(android.R.drawable.stat_sys_keyboard)
+                    .setSmallIcon(android.R.drawable.ic_input_get)
                     .setContentTitle("Keyboard Helper")
                     .setContentText(text)
                     .setOngoing(false)
