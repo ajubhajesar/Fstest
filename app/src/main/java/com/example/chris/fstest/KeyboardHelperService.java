@@ -32,7 +32,7 @@ public class KeyboardHelperService extends AccessibilityService {
         if (event.getAction() != KeyEvent.ACTION_UP) return false;
 
         // Delay tap like Key Mapper
-        handler.postDelayed(this::sendTap, TAP_DELAY_MS);
+        handler.postDelayed(new Runnable() { @Override public void run() { sendTap(); } }, TAP_DELAY_MS);
 
         // Consume ENTER (no newline)
         return true;
