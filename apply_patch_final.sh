@@ -1,3 +1,14 @@
+#!/bin/bash
+set -e
+
+echo "Applying FINAL Instagram ENTER → SEND patch"
+
+BASE=app/src/main
+
+# ===============================
+# KeyboardHelperService.java
+# ===============================
+cat <<'JAVA' > $BASE/java/com/example/chris/fstest/KeyboardHelperService.java
 package com.example.chris.fstest;
 
 import android.accessibilityservice.AccessibilityService;
@@ -154,3 +165,67 @@ public class KeyboardHelperService extends AccessibilityService
 
     @Override public void onInterrupt() {}
 }
+JAVA
+
+# ===============================
+# MainActivity.java (NO AndroidX)
+# ===============================
+cat <<'JAVA' > $BASE/java/com/example/chris/fstest/MainActivity.java
+package com.example.chris.fstest;
+
+import android.app.Activity;
+import android.os.Bundle;
+import android.widget.TextView;
+import android.content.Intent;
+import android.provider.Settings;
+
+public class MainActivity extends Activity {
+    @Override
+    protected void onCreate(Bundle b) {
+        super.onCreate(b);
+        TextView t = new TextView(this);
+        t.setText("Enable Accessibility Service\nThen connect keyboard and open Instagram");
+        setContentView(t);
+        startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));
+    }
+}
+JAVA
+
+# ===============================
+# AndroidManifest.xml
+# ===============================
+cat <<'XML' > $BASE/AndroidManifest.xml
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.example.chris.fstest">
+
+    <application
+        android:allowBackup="true"
+        android:label="Fstest"
+        android:supportsRtl="true">
+
+        <activity android:name=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+
+        <service
+            android:name=".KeyboardHelperService"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService"/>
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_service_config"/>
+        </service>
+
+    </application>
+</manifest>
+XML
+
+echo "DONE. Now run:"
+echo "git add ."
+echo "git commit -m \"FINAL: Instagram ENTER → SEND (gesture only)\""
