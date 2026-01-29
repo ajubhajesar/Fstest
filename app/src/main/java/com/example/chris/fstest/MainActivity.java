@@ -1,25 +1,30 @@
 package com.example.chris.fstest;
 
+import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.widget.TextView;
-import androidx.appcompat.app.AppCompatActivity;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends Activity {
+
     @Override
     protected void onCreate(Bundle b) {
         super.onCreate(b);
+
         TextView t = new TextView(this);
-        t.setPadding(40,40,40,40);
+        t.setPadding(40, 40, 40, 40);
         t.setText(
             "Instagram ENTER → SEND\n\n" +
-            "• Enable accessibility\n" +
-            "• Connect physical keyboard\n" +
-            "• Open Instagram\n" +
-            "• Press ENTER"
+            "1. Enable Accessibility Service\n" +
+            "2. Connect physical keyboard\n" +
+            "3. Open Instagram\n" +
+            "4. Press ENTER to send"
         );
+
         setContentView(t);
+
+        // Open accessibility settings automatically
         startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));
     }
 }
