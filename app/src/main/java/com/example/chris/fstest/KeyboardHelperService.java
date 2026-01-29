@@ -2,7 +2,6 @@ package com.example.chris.fstest;
 
 import android.accessibilityservice.AccessibilityService;
 import android.accessibilityservice.GestureDescription;
-import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.graphics.Path;
@@ -11,97 +10,89 @@ import android.os.Build;
 import android.view.InputDevice;
 import android.view.KeyEvent;
 import android.view.accessibility.AccessibilityEvent;
-
 import androidx.core.app.NotificationCompat;
 
 public class KeyboardHelperService extends AccessibilityService
         implements InputManager.InputDeviceListener {
 
-    private static final String IG_PACKAGE = "com.instagram.android";
-    private static final int NOTIF_ID = 101;
-    private static final int SEND_X = 990;
-    private static final int SEND_Y = 2313;
+    private static final String IG = "com.instagram.android";
+    private static final int X = 990;
+    private static final int Y = 2313;
 
-    private boolean keyboardConnected = false;
-    private boolean instagramActive = false;
-
-    private InputManager inputManager;
-    private NotificationManager notificationManager;
+    private boolean keyboard = false;
+    private boolean instagram = false;
+    private InputManager im;
+    private NotificationManager nm;
 
     @Override
     public void onServiceConnected() {
-        inputManager = (InputManager) getSystemService(INPUT_SERVICE);
-        notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-        inputManager.registerInputDeviceListener(this, null);
-        checkKeyboard();
+        im = (InputManager) getSystemService(INPUT_SERVICE);
+        nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+        im.registerInputDeviceListener(this, null);
+        check();
     }
 
-    private void checkKeyboard() {
+    private void check() {
         boolean found = false;
         for (int id : InputDevice.getDeviceIds()) {
             InputDevice d = InputDevice.getDevice(id);
             if (d != null && !d.isVirtual()
-                    && (d.getSources() & InputDevice.SOURCE_KEYBOARD) != 0
-                    && d.getKeyboardType() == InputDevice.KEYBOARD_TYPE_ALPHABETIC) {
+                    && (d.getSources() & InputDevice.SOURCE_KEYBOARD) != 0) {
                 found = true;
-                break;
             }
         }
-        if (found != keyboardConnected) {
-            keyboardConnected = found;
-            if (keyboardConnected) showNotification();
-            else notificationManager.cancel(NOTIF_ID);
+        if (found != keyboard) {
+            keyboard = found;
+            if (keyboard) notifyState();
+            else nm.cancel(1);
         }
     }
 
-    private void showNotification() {
-        String ch = "kbd";
+    private void notifyState() {
         if (Build.VERSION.SDK_INT >= 26) {
-            notificationManager.createNotificationChannel(
-                    new NotificationChannel(ch, "Keyboard Helper",
+            nm.createNotificationChannel(
+                    new NotificationChannel("kbd","Keyboard",
                             NotificationManager.IMPORTANCE_LOW));
         }
-        Notification n = new NotificationCompat.Builder(this, ch)
-                .setContentTitle("Keyboard connected")
-                .setContentText(instagramActive ? "Instagram detected" : "Waiting for Instagram")
+        nm.notify(1, new NotificationCompat.Builder(this,"kbd")
                 .setSmallIcon(android.R.drawable.stat_notify_more)
                 .setOngoing(true)
-                .build();
-        notificationManager.notify(NOTIF_ID, n);
+                .setContentTitle("Keyboard connected")
+                .setContentText(instagram ? "Instagram active" : "Waiting for Instagram")
+                .build());
     }
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent e) {
         if (e.getEventType() == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
-            CharSequence p = e.getPackageName();
-            instagramActive = p != null && IG_PACKAGE.contentEquals(p);
-            if (keyboardConnected) showNotification();
+            instagram = IG.contentEquals(e.getPackageName());
+            if (keyboard) notifyState();
         }
     }
 
     @Override
     public boolean onKeyEvent(KeyEvent e) {
-        if (!keyboardConnected || !instagramActive) return false;
-        if (e.getKeyCode() == KeyEvent.KEYCODE_ENTER
-                && e.getAction() == KeyEvent.ACTION_UP) {
-            tap(SEND_X, SEND_Y);
+        if (keyboard && instagram &&
+                e.getKeyCode() == KeyEvent.KEYCODE_ENTER &&
+                e.getAction() == KeyEvent.ACTION_UP) {
+            tap();
             return true;
         }
         return false;
     }
 
-    private void tap(int x, int y) {
+    private void tap() {
         if (Build.VERSION.SDK_INT < 24) return;
         Path p = new Path();
-        p.moveTo(x, y);
-        p.lineTo(x, y);
+        p.moveTo(X, Y);
+        p.lineTo(X, Y);
         dispatchGesture(new GestureDescription.Builder()
-                .addStroke(new GestureDescription.StrokeDescription(p, 0, 50))
+                .addStroke(new GestureDescription.StrokeDescription(p,0,50))
                 .build(), null, null);
     }
 
     @Override public void onInterrupt() {}
-    @Override public void onInputDeviceAdded(int i) { checkKeyboard(); }
-    @Override public void onInputDeviceRemoved(int i) { checkKeyboard(); }
-    @Override public void onInputDeviceChanged(int i) { checkKeyboard(); }
+    @Override public void onInputDeviceAdded(int i){check();}
+    @Override public void onInputDeviceRemoved(int i){check();}
+    @Override public void onInputDeviceChanged(int i){check();}
 }
