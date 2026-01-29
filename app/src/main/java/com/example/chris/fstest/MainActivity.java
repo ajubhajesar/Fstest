@@ -10,6 +10,7 @@ import android.provider.Settings;
 import android.content.Intent;
 import android.widget.TextView;
 import android.widget.Button;
+import android.view.View;
 
 public class MainActivity extends Activity {
 
@@ -56,26 +57,31 @@ public class MainActivity extends Activity {
 
         boolean accEnabled = false;
         try {
-            accEnabled =
-                Settings.Secure.getInt(
+            accEnabled = Settings.Secure.getInt(
                     getContentResolver(),
                     Settings.Secure.ACCESSIBILITY_ENABLED
-                ) == 1;
+            ) == 1;
         } catch (Exception e) {}
 
         acc.setText("Accessibility: " + (accEnabled ? "ENABLED ✓" : "DISABLED ⚠"));
         noti.setText("Notifications: ENABLED ✓");
 
-        accBtn.setOnClickListener(v ->
-            startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-        );
+        accBtn.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                startActivity(
+                        new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                );
+            }
+        });
 
-        notiBtn.setOnClickListener(v ->
-            startActivity(
-                new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
-                    .putExtra(Settings.EXTRA_APP_PACKAGE, getPackageName())
-            )
-        );
+        notiBtn.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                Intent i =
+                        new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS);
+                i.putExtra(Settings.EXTRA_APP_PACKAGE, getPackageName());
+                startActivity(i);
+            }
+        });
 
         render();
     }
