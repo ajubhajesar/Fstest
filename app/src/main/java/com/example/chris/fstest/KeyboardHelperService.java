@@ -11,7 +11,6 @@ import android.os.Handler;
 import android.os.Looper;
 import android.view.KeyEvent;
 import android.view.accessibility.AccessibilityEvent;
-import android.view.accessibility.AccessibilityNodeInfo;
 
 public class KeyboardHelperService extends AccessibilityService {
 
@@ -27,6 +26,39 @@ public class KeyboardHelperService extends AccessibilityService {
 
     private final Handler handler = new Handler(Looper.getMainLooper());
 
+    // Cached foreground package (updated ONLY by window events)
+    private String lastForegroundPkg = null;
+
+    @Override
+    protected void onServiceConnected() {
+        createNotificationChannel();
+    }
+
+    @Override
+    public void onAccessibilityEvent(AccessibilityEvent event) {
+
+        if (event.getEventType() != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+            return;
+        }
+
+        CharSequence pkg = event.getPackageName();
+        if (pkg == null) {
+            lastForegroundPkg = null;
+            removeNotification();
+            return;
+        }
+
+        String p = pkg.toString();
+
+        if (PKG_INSTAGRAM.equals(p) || PKG_CHATGPT.equals(p)) {
+            lastForegroundPkg = p;
+            showNotification();
+        } else {
+            lastForegroundPkg = null;
+            removeNotification();
+        }
+    }
+
     @Override
     protected boolean onKeyEvent(KeyEvent event) {
 
@@ -40,18 +72,15 @@ public class KeyboardHelperService extends AccessibilityService {
             return false;
         }
 
-        // KEY_UP only (critical)
+        // KEY_UP only
         if (event.getAction() != KeyEvent.ACTION_UP) {
             return false;
         }
 
-        // Detect foreground app at action time (KeyMapper-style)
-        if (!isAllowedForegroundApp()) {
-            removeNotification();
+        // Must be in allowed app (cached)
+        if (lastForegroundPkg == null) {
             return false;
         }
-
-        showNotification();
 
         handler.postDelayed(new Runnable() {
             @Override
@@ -61,17 +90,6 @@ public class KeyboardHelperService extends AccessibilityService {
         }, TAP_DELAY_MS);
 
         return true; // consume ENTER
-    }
-
-    private boolean isAllowedForegroundApp() {
-        AccessibilityNodeInfo root = getRootInActiveWindow();
-        if (root == null) return false;
-
-        CharSequence pkg = root.getPackageName();
-        if (pkg == null) return false;
-
-        return PKG_INSTAGRAM.contentEquals(pkg) ||
-               PKG_CHATGPT.contentEquals(pkg);
     }
 
     private void sendTap() {
@@ -87,11 +105,6 @@ public class KeyboardHelperService extends AccessibilityService {
                         .build();
 
         dispatchGesture(gesture, null, null);
-    }
-
-    @Override
-    public void onAccessibilityEvent(AccessibilityEvent event) {
-        // Not needed anymore
     }
 
     @Override
@@ -117,8 +130,7 @@ public class KeyboardHelperService extends AccessibilityService {
         return (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
     }
 
-    @Override
-    protected void onServiceConnected() {
+    private void createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= 26) {
             NotificationChannel ch = new NotificationChannel(
                     CHANNEL_ID,
