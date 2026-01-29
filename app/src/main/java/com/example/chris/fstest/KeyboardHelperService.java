@@ -14,11 +14,9 @@ import android.view.accessibility.AccessibilityEvent;
 
 public class KeyboardHelperService extends AccessibilityService {
 
-    // Allowed apps
     private static final String PKG_INSTAGRAM = "com.instagram.android";
     private static final String PKG_CHATGPT   = "com.openai.chatgpt";
 
-    // Send button coordinates (portrait)
     private static final int SEND_X = 990;
     private static final int SEND_Y = 2313;
 
@@ -28,8 +26,7 @@ public class KeyboardHelperService extends AccessibilityService {
 
     private final Handler handler = new Handler(Looper.getMainLooper());
 
-    private boolean physicalKeyboardActive = false;
-    private boolean allowedAppActive = false;
+    private boolean allowedAppForeground = false;
 
     @Override
     protected void onServiceConnected() {
@@ -39,26 +36,23 @@ public class KeyboardHelperService extends AccessibilityService {
     @Override
     protected boolean onKeyEvent(KeyEvent event) {
 
-        // Detect physical keyboard (Java 7 safe)
+        // Ignore virtual / on-screen keyboards
         if (event.getDevice() != null && event.getDevice().isVirtual()) {
             return false;
         }
 
-        // Mark keyboard as active on first real key
-        physicalKeyboardActive = true;
-
-        // Only act if allowed app is active
-        if (!allowedAppActive) {
-            return false;
-        }
-
-        // ENTER key only
+        // ENTER only
         if (event.getKeyCode() != KeyEvent.KEYCODE_ENTER) {
             return false;
         }
 
         // KEY_UP only (critical)
         if (event.getAction() != KeyEvent.ACTION_UP) {
+            return false;
+        }
+
+        // Only in allowed apps
+        if (!allowedAppForeground) {
             return false;
         }
 
@@ -69,24 +63,24 @@ public class KeyboardHelperService extends AccessibilityService {
             }
         }, TAP_DELAY_MS);
 
-        return true; // consume ENTER
+        return true;
     }
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
 
-        if (!physicalKeyboardActive) return;
+        if (event.getEventType() != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+            return;
+        }
 
-        if (event.getEventType() == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
-            CharSequence pkg = event.getPackageName();
-            boolean nowAllowed =
-                    pkg != null &&
-                    (PKG_INSTAGRAM.contentEquals(pkg) || PKG_CHATGPT.contentEquals(pkg));
+        CharSequence pkg = event.getPackageName();
+        boolean nowAllowed =
+                pkg != null &&
+                (PKG_INSTAGRAM.contentEquals(pkg) || PKG_CHATGPT.contentEquals(pkg));
 
-            if (nowAllowed != allowedAppActive) {
-                allowedAppActive = nowAllowed;
-                updateNotification();
-            }
+        if (nowAllowed != allowedAppForeground) {
+            allowedAppForeground = nowAllowed;
+            updateNotification();
         }
     }
 
@@ -111,7 +105,7 @@ public class KeyboardHelperService extends AccessibilityService {
     }
 
     private void updateNotification() {
-        if (allowedAppActive) {
+        if (allowedAppForeground) {
             showNotification();
         } else {
             removeNotification();
@@ -122,7 +116,6 @@ public class KeyboardHelperService extends AccessibilityService {
         Notification n = new Notification.Builder(this, CHANNEL_ID)
                 .setContentTitle("ENTER → Send active")
                 .setSmallIcon(android.R.drawable.ic_input_get)
-                .setOngoing(false)
                 .setPriority(Notification.PRIORITY_MIN)
                 .build();
 
