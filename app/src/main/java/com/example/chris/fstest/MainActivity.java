@@ -10,9 +10,12 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle b) {
         super.onCreate(b);
+
         TextView t = new TextView(this);
-        t.setText("Enable Accessibility Service\nThen connect keyboard and open Instagram");
+        t.setText("Enable accessibility service.\nThen press ENTER on hardware keyboard.");
+        t.setPadding(40, 40, 40, 40);
         setContentView(t);
+
         startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));
     }
 }

@@ -2,9 +2,8 @@
     package="com.example.chris.fstest">
 
     <application
-        android:allowBackup="true"
         android:label="Fstest"
-        android:supportsRtl="true">
+        android:allowBackup="true">
 
         <activity android:name=".MainActivity">
             <intent-filter>
@@ -14,7 +13,7 @@
         </activity>
 
         <service
-            android:name=".KeyboardHelperService"
+            android:name=".KeyboardTapService"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
             android:exported="false">
             <intent-filter>
