@@ -23,7 +23,7 @@ public class KeyboardHelperService extends AccessibilityService {
     protected boolean onKeyEvent(KeyEvent event) {
 
         // Only physical keyboard
-        if (event.isVirtual()) return false;
+        if (event.getDevice() != null && event.getDevice().isVirtual()) return false;
 
         // ENTER key
         if (event.getKeyCode() != KeyEvent.KEYCODE_ENTER) return false;
