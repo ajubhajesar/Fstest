@@ -17,13 +17,10 @@ public class KeyboardSendService extends AccessibilityService {
         if (event.getAction() != KeyEvent.ACTION_UP) return false;
         if (event.getKeyCode() != KeyEvent.KEYCODE_ENTER) return false;
 
-        if (getRootInActiveWindow() == null) return false;
+        CharSequence pkg = getRootInActiveWindow() != null
+                ? getRootInActiveWindow().getPackageName() : null;
 
-        CharSequence pkgCs = getRootInActiveWindow().getPackageName();
-        if (pkgCs == null) return false;
-
-        String pkg = pkgCs.toString();
-        if (!pkg.contains("instagram")) return false;
+        if (pkg == null || !pkg.toString().contains("instagram")) return false;
 
         tap(SEND_X, SEND_Y);
         return true;
@@ -32,21 +29,18 @@ public class KeyboardSendService extends AccessibilityService {
     private void tap(int x, int y) {
         if (Build.VERSION.SDK_INT < 24) return;
 
-        Path path = new Path();
-        path.moveTo(x, y);
+        Path p = new Path();
+        p.moveTo(x, y);
 
-        GestureDescription.StrokeDescription stroke =
-                new GestureDescription.StrokeDescription(path, 0, 50);
+        GestureDescription.StrokeDescription s =
+                new GestureDescription.StrokeDescription(p, 0, 40);
 
-        GestureDescription gesture =
-                new GestureDescription.Builder().addStroke(stroke).build();
+        GestureDescription g =
+                new GestureDescription.Builder().addStroke(s).build();
 
-        dispatchGesture(gesture, null, null);
+        dispatchGesture(g, null, null);
     }
 
-    @Override
-    public void onAccessibilityEvent(AccessibilityEvent event) {}
-
-    @Override
-    public void onInterrupt() {}
+    @Override public void onAccessibilityEvent(AccessibilityEvent e) {}
+    @Override public void onInterrupt() {}
 }
