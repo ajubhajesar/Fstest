@@ -9,21 +9,20 @@ import android.view.accessibility.AccessibilityEvent;
 
 public class KeyboardSendService extends AccessibilityService {
 
-    // Instagram SEND button coordinates (your screenshot)
     private static final int SEND_X = 990;
     private static final int SEND_Y = 2313;
 
     @Override
     public boolean onKeyEvent(KeyEvent event) {
-
         if (event.getAction() != KeyEvent.ACTION_UP) return false;
         if (event.getKeyCode() != KeyEvent.KEYCODE_ENTER) return false;
 
         if (getRootInActiveWindow() == null) return false;
 
-        String pkg = getRootInActiveWindow().getPackageName().toString();
+        CharSequence pkgCs = getRootInActiveWindow().getPackageName();
+        if (pkgCs == null) return false;
 
-        // Only Instagram
+        String pkg = pkgCs.toString();
         if (!pkg.contains("instagram")) return false;
 
         tap(SEND_X, SEND_Y);
@@ -40,20 +39,14 @@ public class KeyboardSendService extends AccessibilityService {
                 new GestureDescription.StrokeDescription(path, 0, 50);
 
         GestureDescription gesture =
-                new GestureDescription.Builder()
-                        .addStroke(stroke)
-                        .build();
+                new GestureDescription.Builder().addStroke(stroke).build();
 
         dispatchGesture(gesture, null, null);
     }
 
     @Override
-    public void onAccessibilityEvent(AccessibilityEvent event) {
-        // not used
-    }
+    public void onAccessibilityEvent(AccessibilityEvent event) {}
 
     @Override
-    public void onInterrupt() {
-        // not used
-    }
+    public void onInterrupt() {}
 }
