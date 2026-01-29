@@ -24,7 +24,7 @@ public class KeyboardHelperService extends AccessibilityService {
     @Override
     protected boolean onKeyEvent(KeyEvent event) {
 
-        // Ignore software keyboard events
+        // Ignore software keyboards
         if (event.getDevice() != null && event.getDevice().isVirtual()) {
             return false;
         }
@@ -39,17 +39,8 @@ public class KeyboardHelperService extends AccessibilityService {
             return false;
         }
 
-        // Must be Instagram
-        AccessibilityWindowInfo active = getActiveWindow();
-        if (active == null) return false;
-
-        CharSequence pkg = active.getRoot() != null ? active.getRoot().getPackageName() : null;
-        if (pkg == null || !PKG_INSTAGRAM.contentEquals(pkg)) {
-            return false;
-        }
-
-        // IME must be active (text input context)
-        if (!isImeWindowVisible()) {
+        // Must be Instagram AND IME active
+        if (!isInstagramForeground() || !isImeActive()) {
             return false;
         }
 
@@ -63,7 +54,26 @@ public class KeyboardHelperService extends AccessibilityService {
         return true; // consume ENTER
     }
 
-    private boolean isImeWindowVisible() {
+    private boolean isInstagramForeground() {
+        List<AccessibilityWindowInfo> windows = getWindows();
+        if (windows == null) return false;
+
+        for (AccessibilityWindowInfo w : windows) {
+            if (w == null) continue;
+
+            if (w.getType() == AccessibilityWindowInfo.TYPE_APPLICATION) {
+                if (w.getRoot() != null) {
+                    CharSequence pkg = w.getRoot().getPackageName();
+                    if (pkg != null && PKG_INSTAGRAM.contentEquals(pkg)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    private boolean isImeActive() {
         List<AccessibilityWindowInfo> windows = getWindows();
         if (windows == null) return false;
 
