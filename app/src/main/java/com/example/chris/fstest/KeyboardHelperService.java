@@ -7,7 +7,8 @@ import android.os.Handler;
 import android.os.Looper;
 import android.view.KeyEvent;
 import android.view.accessibility.AccessibilityEvent;
-import android.view.accessibility.AccessibilityNodeInfo;
+import android.view.accessibility.AccessibilityWindowInfo;
+import java.util.List;
 
 public class KeyboardHelperService extends AccessibilityService {
 
@@ -16,14 +17,14 @@ public class KeyboardHelperService extends AccessibilityService {
     private static final int SEND_X = 990;
     private static final int SEND_Y = 2313;
 
-    private static final int TAP_DELAY_MS = 60;
+    private static final int TAP_DELAY_MS = 50;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
 
     @Override
     protected boolean onKeyEvent(KeyEvent event) {
 
-        // Ignore software keyboards
+        // Ignore software keyboard events
         if (event.getDevice() != null && event.getDevice().isVirtual()) {
             return false;
         }
@@ -39,20 +40,18 @@ public class KeyboardHelperService extends AccessibilityService {
         }
 
         // Must be Instagram
-        AccessibilityNodeInfo root = getRootInActiveWindow();
-        if (root == null) return false;
+        AccessibilityWindowInfo active = getActiveWindow();
+        if (active == null) return false;
 
-        CharSequence pkg = root.getPackageName();
+        CharSequence pkg = active.getRoot() != null ? active.getRoot().getPackageName() : null;
         if (pkg == null || !PKG_INSTAGRAM.contentEquals(pkg)) {
             return false;
         }
 
-        // Must have focused editable input (DM text box)
-        AccessibilityNodeInfo focused =
-                root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT);
-
-        if (focused == null) return false;
-        if (!focused.isEditable()) return false;
+        // IME must be active (text input context)
+        if (!isImeWindowVisible()) {
+            return false;
+        }
 
         handler.postDelayed(new Runnable() {
             @Override
@@ -62,6 +61,18 @@ public class KeyboardHelperService extends AccessibilityService {
         }, TAP_DELAY_MS);
 
         return true; // consume ENTER
+    }
+
+    private boolean isImeWindowVisible() {
+        List<AccessibilityWindowInfo> windows = getWindows();
+        if (windows == null) return false;
+
+        for (AccessibilityWindowInfo w : windows) {
+            if (w != null && w.getType() == AccessibilityWindowInfo.TYPE_INPUT_METHOD) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void sendTap() {
