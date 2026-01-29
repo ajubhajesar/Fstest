@@ -3,86 +3,40 @@ package com.example.chris.fstest;
 import android.accessibilityservice.AccessibilityService;
 import android.accessibilityservice.GestureDescription;
 import android.graphics.Path;
-import android.os.Handler;
-import android.os.Looper;
 import android.view.KeyEvent;
 import android.view.accessibility.AccessibilityEvent;
-import android.view.accessibility.AccessibilityWindowInfo;
-import java.util.List;
 
 public class KeyboardHelperService extends AccessibilityService {
 
-    private static final String PKG_INSTAGRAM = "com.instagram.android";
-
+    // Adjust if needed (your confirmed working coords)
     private static final int SEND_X = 990;
     private static final int SEND_Y = 2313;
-
-    private static final int TAP_DELAY_MS = 50;
-
-    private final Handler handler = new Handler(Looper.getMainLooper());
 
     @Override
     protected boolean onKeyEvent(KeyEvent event) {
 
-        // Ignore software keyboards
+        // Ignore virtual / software keyboards
         if (event.getDevice() != null && event.getDevice().isVirtual()) {
             return false;
         }
 
-        // ENTER only
+        // Only ENTER
         if (event.getKeyCode() != KeyEvent.KEYCODE_ENTER) {
             return false;
         }
 
-        // KEY_UP only
+        // Only on key release
         if (event.getAction() != KeyEvent.ACTION_UP) {
             return false;
         }
 
-        // Must be Instagram AND IME active
-        if (!isInstagramForeground() || !isImeActive()) {
-            return false;
+        // MUST be Shift + Enter
+        if (!event.isShiftPressed()) {
+            return false; // let normal Enter pass through
         }
 
-        handler.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                sendTap();
-            }
-        }, TAP_DELAY_MS);
-
-        return true; // consume ENTER
-    }
-
-    private boolean isInstagramForeground() {
-        List<AccessibilityWindowInfo> windows = getWindows();
-        if (windows == null) return false;
-
-        for (AccessibilityWindowInfo w : windows) {
-            if (w == null) continue;
-
-            if (w.getType() == AccessibilityWindowInfo.TYPE_APPLICATION) {
-                if (w.getRoot() != null) {
-                    CharSequence pkg = w.getRoot().getPackageName();
-                    if (pkg != null && PKG_INSTAGRAM.contentEquals(pkg)) {
-                        return true;
-                    }
-                }
-            }
-        }
-        return false;
-    }
-
-    private boolean isImeActive() {
-        List<AccessibilityWindowInfo> windows = getWindows();
-        if (windows == null) return false;
-
-        for (AccessibilityWindowInfo w : windows) {
-            if (w != null && w.getType() == AccessibilityWindowInfo.TYPE_INPUT_METHOD) {
-                return true;
-            }
-        }
-        return false;
+        sendTap();
+        return true; // consume Shift+Enter only
     }
 
     private void sendTap() {
@@ -102,7 +56,7 @@ public class KeyboardHelperService extends AccessibilityService {
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
-        // intentionally unused
+        // intentionally empty
     }
 
     @Override
