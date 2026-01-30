@@ -1,3 +1,32 @@
+#!/bin/bash
+set -e
+
+echo "================================"
+echo "FINAL FIX - Instagram Keyboard"
+echo "================================"
+echo ""
+
+if [ ! -f "build.gradle" ]; then
+    echo "❌ Run from project root"
+    exit 1
+fi
+
+BACKUP="backup_final_$(date +%Y%m%d_%H%M%S)"
+mkdir -p "$BACKUP"
+
+# Backup
+for f in \
+    "app/src/main/java/com/example/chris/fstest/KeyboardTapService.java" \
+    "app/src/main/res/xml/accessibility_service_config.xml"
+do
+    [ -f "$f" ] && cp "$f" "$BACKUP/"
+done
+
+echo "✓ Backup: $BACKUP/"
+echo ""
+
+# Replace KeyboardTapService with working version
+cat > "app/src/main/java/com/example/chris/fstest/KeyboardTapService.java" << 'JAVAEOF'
 package com.example.chris.fstest;
 
 import android.accessibilityservice.AccessibilityService;
@@ -135,3 +164,37 @@ public class KeyboardTapService extends AccessibilityService
         super.onDestroy();
     }
 }
+JAVAEOF
+
+echo "✓ KeyboardTapService.java updated"
+
+# Update XML config
+cat > "app/src/main/res/xml/accessibility_service_config.xml" << 'XMLEOF'
+<?xml version="1.0" encoding="utf-8"?>
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:accessibilityEventTypes="typeWindowStateChanged"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:notificationTimeout="100"
+    android:canRequestFilterKeyEvents="true"
+    android:canPerformGestures="true"
+    android:accessibilityFlags="flagRequestFilterKeyEvents|flagReportViewIds" />
+XMLEOF
+
+echo "✓ accessibility_service_config.xml updated"
+
+# Delete the other service to avoid confusion
+rm -f "app/src/main/java/com/example/chris/fstest/KeyboardHelperService.java"
+rm -f "app/src/main/res/xml/accessibility_service.xml"
+
+echo "✓ Removed unused files"
+echo ""
+echo "================================"
+echo "✓ PATCH COMPLETE"
+echo "================================"
+echo ""
+echo "Now run:"
+echo "  ./gradlew clean assembleDebug"
+echo "  adb install -r app/build/outputs/apk/debug/app-debug.apk"
+echo ""
+echo "Debug: adb logcat | grep IGKbd"
+echo ""
