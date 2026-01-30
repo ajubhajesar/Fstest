@@ -118,7 +118,7 @@ public class KeyboardTapService extends AccessibilityService
                 .setPriority(Notification.PRIORITY_LOW)
                 .build();
         }
-        nm.updateNotification(1, n);
+        nm.notify(1, n);
         Log.d(TAG, "Notification shown: " + txt);
     }
 
