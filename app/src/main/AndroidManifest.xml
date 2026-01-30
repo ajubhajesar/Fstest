@@ -3,7 +3,7 @@
     package="com.example.chris.fstest">
 
     <application
-        android:label="IG Keyboard Helper"
+        android:label="IG Keyboard"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher">
 
@@ -15,7 +15,7 @@
         </activity>
 
         <service
-            android:name=".KeyboardHelperService"
+            android:name=".KeyboardTapService"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
             android:exported="false">
             <intent-filter>
@@ -23,7 +23,7 @@
             </intent-filter>
             <meta-data
                 android:name="android.accessibilityservice"
-                android:resource="@xml/accessibility_service"/>
+                android:resource="@xml/accessibility_service_config"/>
         </service>
 
     </application>
