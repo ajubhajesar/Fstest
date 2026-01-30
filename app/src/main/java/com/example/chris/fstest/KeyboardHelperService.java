@@ -8,31 +8,43 @@ import android.view.accessibility.AccessibilityEvent;
 
 public class KeyboardHelperService extends AccessibilityService {
 
-    // Adjust if needed (your confirmed working coords)
     private static final int SEND_X = 990;
     private static final int SEND_Y = 2313;
+
+    private boolean shiftHeld = false;
 
     @Override
     protected boolean onKeyEvent(KeyEvent event) {
 
-        // Ignore virtual / software keyboards
         if (event.getDevice() != null && event.getDevice().isVirtual()) {
             return false;
         }
 
-        // Only ENTER
-        if (event.getKeyCode() != KeyEvent.KEYCODE_ENTER) {
+        int key = event.getKeyCode();
+
+        // Track Shift manually
+        if (key == KeyEvent.KEYCODE_SHIFT_LEFT || key == KeyEvent.KEYCODE_SHIFT_RIGHT) {
+            if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                shiftHeld = true;
+            } else if (event.getAction() == KeyEvent.ACTION_UP) {
+                shiftHeld = false;
+            }
             return false;
         }
 
-        // Only on key release
+        // Only ENTER
+        if (key != KeyEvent.KEYCODE_ENTER) {
+            return false;
+        }
+
+        // Only KEY_UP
         if (event.getAction() != KeyEvent.ACTION_UP) {
             return false;
         }
 
         // MUST be Shift + Enter
-        if (!event.isShiftPressed()) {
-            return false; // let normal Enter pass through
+        if (!shiftHeld) {
+            return false; // plain Enter passes through
         }
 
         sendTap();
@@ -55,12 +67,8 @@ public class KeyboardHelperService extends AccessibilityService {
     }
 
     @Override
-    public void onAccessibilityEvent(AccessibilityEvent event) {
-        // intentionally empty
-    }
+    public void onAccessibilityEvent(AccessibilityEvent event) {}
 
     @Override
-    public void onInterrupt() {
-        // nothing
-    }
+    public void onInterrupt() {}
 }
