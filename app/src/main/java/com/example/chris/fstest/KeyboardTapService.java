@@ -71,11 +71,11 @@ public class KeyboardTapService extends AccessibilityService
         if (found != kbd) {
             kbd = found;
             Log.d(TAG, "Kbd state: " + kbd);
-            notify();
+            updateNotification();
         }
     }
 
-    private void notify() {
+    private void updateNotification() {
         if (!kbd) {
             nm.cancel(1);
             Log.d(TAG, "Notification cancelled");
@@ -118,7 +118,7 @@ public class KeyboardTapService extends AccessibilityService
                 .setPriority(Notification.PRIORITY_LOW)
                 .build();
         }
-        nm.notify(1, n);
+        nm.updateNotification(1, n);
         Log.d(TAG, "Notification shown: " + txt);
     }
 
@@ -130,7 +130,7 @@ public class KeyboardTapService extends AccessibilityService
             if (now != ig) {
                 ig = now;
                 Log.d(TAG, "IG: " + ig + " pkg: " + pkg);
-                if (kbd) notify();
+                if (kbd) updateNotification();
             }
         }
     }
