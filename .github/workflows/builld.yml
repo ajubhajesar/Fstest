@@ -19,17 +19,24 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      # ✅ Use ONLY Java 8 (correct for AGP 3.1.2)
-      - name: Set up JDK 8
+      # ✅ JDK 17 ONLY for Android SDK tools
+      - name: Set up JDK 17 (for SDK)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      # 🔁 Switch DOWN to JDK 8 for Gradle / AGP 3.1.2
+      - name: Switch to JDK 8 (for build)
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 8
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      # 🚀 Gradle cache (HUGE speed boost)
+      # 🚀 Gradle cache
       - name: Cache Gradle
         uses: actions/cache@v4
         with:
@@ -43,16 +50,24 @@ jobs:
       - name: Grant execute permission to gradlew
         run: chmod +x gradlew
 
-      # 🧠 Clean, fast, readable build
-      - name: Build debug APK
+      # 🔥 Error-only build output
+      - name: Build debug APK (error-focused)
         run: |
+          set +e
           ./gradlew assembleDebug \
             --no-daemon \
             --parallel \
             --configure-on-demand \
-            --console=plain
+            --console=plain \
+            > build.log 2>&1
+          EXIT_CODE=$?
+          echo "=========== ERROR SUMMARY ==========="
+          grep -n "FAILURE:\\|ERROR:\\|error:" build.log || echo "No errors found"
+          echo "====================================="
+          exit $EXIT_CODE
 
       - name: Upload APK
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: app-debug-apk
