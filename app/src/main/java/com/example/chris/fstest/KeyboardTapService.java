@@ -22,17 +22,12 @@ public class KeyboardTapService extends AccessibilityService
     private static final String TAG = "IGKbd";
     private static final String IG = "com.instagram.android";
     
-    // DM Send button coordinates
     private static final int SEND_X = 990;
     private static final int SEND_Y = 2313;
-    
-    // Screen center for swipe gestures (adjust if needed)
     private static final int CENTER_X = 540;
     private static final int CENTER_Y = 1170;
-    
-    // Swipe distances
-    private static final int SWIPE_UP = -800;    // Swipe up distance
-    private static final int SWIPE_DOWN = 800;   // Swipe down distance
+    private static final int SWIPE_UP = -800;
+    private static final int SWIPE_DOWN = 800;
 
     private InputManager im;
     private NotificationManager nm;
@@ -44,15 +39,19 @@ public class KeyboardTapService extends AccessibilityService
     public void onServiceConnected() {
         Log.d(TAG, "Service started");
 
-        // FIX: Explicitly configure the service to ensure Window State events are delivered
+        // FIX: Explicitly set ServiceInfo to ensure Window State changes are detected
+        // while also filtering key events.
         AccessibilityServiceInfo info = getServiceInfo();
         if (info == null) info = new AccessibilityServiceInfo();
         
-        // Ensure we listen for window changes AND key events
         info.eventTypes = AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED;
         info.feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC;
-        info.flags |= AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS;
         info.notificationTimeout = 100;
+        
+        // Ensure flagRequestFilterKeyEvents is present in the Java info object
+        info.flags |= AccessibilityServiceInfo.FLAG_REQUEST_FILTER_KEY_EVENTS;
+        info.flags |= AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS;
+        
         setServiceInfo(info);
 
         im = (InputManager) getSystemService(INPUT_SERVICE);
@@ -91,7 +90,6 @@ public class KeyboardTapService extends AccessibilityService
     private void updateNotification() {
         if (!kbd) {
             nm.cancel(1);
-            Log.d(TAG, "Notification cancelled");
             return;
         }
         
@@ -102,7 +100,7 @@ public class KeyboardTapService extends AccessibilityService
         intent.setPackage(IG);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         
-        PendingIntent pendingIntent = null;
+        PendingIntent pendingIntent;
         if (Build.VERSION.SDK_INT >= 23) {
             pendingIntent = PendingIntent.getActivity(this, 0, intent, 
                 PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
@@ -131,19 +129,17 @@ public class KeyboardTapService extends AccessibilityService
                 .build();
         }
         nm.notify(1, n);
-        Log.d(TAG, "Notification shown: " + txt);
     }
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent e) {
-        // Log all package changes to debug detection
         if (e.getEventType() == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             CharSequence pkg = e.getPackageName();
             if (pkg != null) {
                 boolean now = IG.equals(pkg.toString());
                 if (now != ig) {
                     ig = now;
-                    Log.d(TAG, "IG state change: " + ig + " (Current Pkg: " + pkg + ")");
+                    Log.d(TAG, "IG changed: " + ig + " pkg: " + pkg);
                     if (kbd) updateNotification();
                 }
             }
@@ -153,24 +149,16 @@ public class KeyboardTapService extends AccessibilityService
     @Override
     protected boolean onKeyEvent(KeyEvent e) {
         if (e.getDevice() != null && e.getDevice().isVirtual()) return false;
-        
-        // If Instagram isn't detected, don't consume keys
         if (!kbd || !ig) return false;
         
         int key = e.getKeyCode();
         int action = e.getAction();
         
-        // Track Shift state
         if (key == KeyEvent.KEYCODE_SHIFT_LEFT || key == KeyEvent.KEYCODE_SHIFT_RIGHT) {
-            if (action == KeyEvent.ACTION_DOWN) {
-                shiftHeld = true;
-            } else if (action == KeyEvent.ACTION_UP) {
-                shiftHeld = false;
-            }
+            shiftHeld = (action == KeyEvent.ACTION_DOWN);
             return false; 
         }
         
-        // ENTER key
         if (key == KeyEvent.KEYCODE_ENTER) {
             if (action == KeyEvent.ACTION_UP) {
                 tapAt(SEND_X, SEND_Y, 50);
@@ -178,7 +166,6 @@ public class KeyboardTapService extends AccessibilityService
             return true;
         }
         
-        // UP arrow
         if (key == KeyEvent.KEYCODE_DPAD_UP) {
             if (action == KeyEvent.ACTION_DOWN) {
                 swipe(CENTER_X, CENTER_Y, CENTER_X, CENTER_Y + SWIPE_DOWN, 300);
@@ -186,7 +173,6 @@ public class KeyboardTapService extends AccessibilityService
             return true;
         }
         
-        // DOWN arrow
         if (key == KeyEvent.KEYCODE_DPAD_DOWN) {
             if (action == KeyEvent.ACTION_DOWN) {
                 swipe(CENTER_X, CENTER_Y, CENTER_X, CENTER_Y + SWIPE_UP, 300);
@@ -194,7 +180,6 @@ public class KeyboardTapService extends AccessibilityService
             return true;
         }
         
-        // SHIFT held long press logic
         if (shiftHeld && action == KeyEvent.ACTION_DOWN) {
             longPress(CENTER_X, CENTER_Y, 2000); 
             return true;
@@ -207,8 +192,7 @@ public class KeyboardTapService extends AccessibilityService
         if (Build.VERSION.SDK_INT < 24) return;
         Path p = new Path();
         p.moveTo(x, y);
-        GestureDescription.StrokeDescription s = 
-            new GestureDescription.StrokeDescription(p, 0, duration);
+        GestureDescription.StrokeDescription s = new GestureDescription.StrokeDescription(p, 0, duration);
         dispatchGesture(new GestureDescription.Builder().addStroke(s).build(), null, null);
     }
 
@@ -217,8 +201,7 @@ public class KeyboardTapService extends AccessibilityService
         Path p = new Path();
         p.moveTo(x1, y1);
         p.lineTo(x2, y2);
-        GestureDescription.StrokeDescription s = 
-            new GestureDescription.StrokeDescription(p, 0, duration);
+        GestureDescription.StrokeDescription s = new GestureDescription.StrokeDescription(p, 0, duration);
         dispatchGesture(new GestureDescription.Builder().addStroke(s).build(), null, null);
     }
 
@@ -226,15 +209,14 @@ public class KeyboardTapService extends AccessibilityService
         if (Build.VERSION.SDK_INT < 24) return;
         Path p = new Path();
         p.moveTo(x, y);
-        GestureDescription.StrokeDescription s = 
-            new GestureDescription.StrokeDescription(p, 0, duration);
+        GestureDescription.StrokeDescription s = new GestureDescription.StrokeDescription(p, 0, duration);
         dispatchGesture(new GestureDescription.Builder().addStroke(s).build(), null, null);
     }
 
     @Override public void onInputDeviceAdded(int id) { checkKbd(); }
     @Override public void onInputDeviceRemoved(int id) { checkKbd(); }
     @Override public void onInputDeviceChanged(int id) { checkKbd(); }
-    @Override public void onInterrupt() { Log.d(TAG, "Service interrupted"); }
+    @Override public void onInterrupt() {}
     
     @Override
     public void onDestroy() {
@@ -242,5 +224,5 @@ public class KeyboardTapService extends AccessibilityService
         nm.cancel(1);
         super.onDestroy();
     }
-                    }
-            
+                }
+                        
