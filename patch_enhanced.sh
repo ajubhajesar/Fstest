@@ -1,3 +1,31 @@
+#!/bin/bash
+set -e
+
+echo "================================================"
+echo "INSTAGRAM KEYBOARD - ENHANCED VERSION"
+echo "================================================"
+echo ""
+
+if [ ! -f "build.gradle" ]; then
+    echo "❌ Run from project root"
+    exit 1
+fi
+
+BACKUP="backup_enhanced_$(date +%Y%m%d_%H%M%S)"
+mkdir -p "$BACKUP"
+
+# Backup
+for f in \
+    "app/src/main/java/com/example/chris/fstest/KeyboardTapService.java"
+do
+    [ -f "$f" ] && cp "$f" "$BACKUP/"
+done
+
+echo "✓ Backup: $BACKUP/"
+echo ""
+
+# Enhanced KeyboardTapService with all features
+cat > "app/src/main/java/com/example/chris/fstest/KeyboardTapService.java" << 'EOF'
 package com.example.chris.fstest;
 
 import android.accessibilityservice.AccessibilityService;
@@ -255,3 +283,40 @@ public class KeyboardTapService extends AccessibilityService
         super.onDestroy();
     }
 }
+EOF
+
+echo "✓ KeyboardTapService.java enhanced"
+echo ""
+echo "================================================"
+echo "✓ ENHANCEMENTS APPLIED"
+echo "================================================"
+echo ""
+echo "BUGS FIXED:"
+echo "  ✓ Notification now cancels when keyboard removed"
+echo "  ✓ Notification tap opens Instagram"
+echo ""
+echo "NEW FEATURES:"
+echo "  ✓ ENTER - Send message in DM"
+echo "  ✓ UP arrow - Previous reel (swipe down)"
+echo "  ✓ DOWN arrow - Next reel (swipe up)"
+echo "  ✓ SHIFT hold - Long press to fast forward"
+echo ""
+echo "CONFIGURATION:"
+echo "  • Send button: (990, 2313)"
+echo "  • Screen center: (540, 1170)"
+echo "  • Swipe distance: 800px"
+echo "  • Long press: 2 seconds"
+echo ""
+echo "To adjust coordinates, edit KeyboardTapService.java:"
+echo "  Lines 23-24: SEND_X, SEND_Y"
+echo "  Lines 27-28: CENTER_X, CENTER_Y"
+echo "  Lines 31-32: SWIPE distances"
+echo ""
+echo "BUILD:"
+echo "  ./gradlew clean assembleDebug"
+echo ""
+echo "DEBUG:"
+echo "  adb logcat | grep IGKbd"
+echo ""
+echo "Backup: $BACKUP/"
+echo ""
