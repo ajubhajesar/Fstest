@@ -6,4 +6,4 @@
     android:canRequestFilterKeyEvents="true"
     android:canPerformGestures="true"
     android:canRetrieveWindowContent="true"
-    android:accessibilityFlags="flagRequestFilterKeyEvents|flagReportViewIds|flagIncludeNotImportantViews" />
+    android:accessibilityFlags="flagRequestFilterKeyEvents|flagReportViewIds|flagIncludeNotImportantViews|flagRetrieveInteractiveWindows" />
