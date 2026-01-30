@@ -6,8 +6,6 @@ import android.accessibilityservice.GestureDescription;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
-import android.app.PendingIntent;
-import android.content.Intent;
 import android.graphics.Path;
 import android.hardware.input.InputManager;
 import android.os.Build;
@@ -20,31 +18,37 @@ public class KeyboardTapService extends AccessibilityService
         implements InputManager.InputDeviceListener {
 
     private static final String TAG = "IGKbd";
-    private static final String IG = "com.instagram.android";
+    private static final String IG_PACKAGE = "com.instagram.android";
     
+    // Coordinates (Adjust based on your screen resolution)
     private static final int SEND_X = 990;
     private static final int SEND_Y = 2313;
+    private static final int CENTER_X = 540;
+    private static final int CENTER_Y = 1170;
 
     private InputManager im;
     private NotificationManager nm;
-    private boolean kbd = false;
-    private boolean ig = false;
+    private boolean kbdConnected = false;
+    private boolean igActive = false;
+    private boolean isShiftPressed = false;
 
     @Override
     public void onServiceConnected() {
         Log.d(TAG, "Service Connected");
 
-        // Force the configuration to include all necessary event types
+        // FORCE CONFIGURATION: This ensures the service detects app changes
         AccessibilityServiceInfo info = getServiceInfo();
         if (info == null) info = new AccessibilityServiceInfo();
         
-        // Listen to everything that might give us a package name
+        // Listen for all window-related changes to catch Instagram
         info.eventTypes = AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED | 
                          AccessibilityEvent.TYPE_WINDOWS_CHANGED | 
                          AccessibilityEvent.TYPE_VIEW_FOCUSED;
                          
         info.feedbackType = AccessibilityServiceInfo.FEEDBACK_GENERIC;
         info.notificationTimeout = 50;
+        
+        // Essential flags for key filtering and gesture performance
         info.flags |= AccessibilityServiceInfo.FLAG_REQUEST_FILTER_KEY_EVENTS;
         info.flags |= AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS;
         
@@ -54,94 +58,127 @@ public class KeyboardTapService extends AccessibilityService
         nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         
         if (Build.VERSION.SDK_INT >= 26) {
-            NotificationChannel ch = new NotificationChannel("kbd", "Keyboard", 
+            NotificationChannel ch = new NotificationChannel("kbd_chan", "Kbd Service", 
                 NotificationManager.IMPORTANCE_LOW);
             nm.createNotificationChannel(ch);
         }
         
         im.registerInputDeviceListener(this, null);
-        checkKbd();
+        checkKeyboardStatus();
     }
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent e) {
-        // Robust detection: Look for package name in ANY valid event
-        CharSequence pkg = e.getPackageName();
-        if (pkg != null) {
-            String currentPkg = pkg.toString();
-            boolean now = IG.equals(currentPkg);
+        // Detect Instagram across various event types
+        if (e.getPackageName() != null) {
+            String pkgName = e.getPackageName().toString();
+            boolean detected = pkgName.equals(IG_PACKAGE);
             
-            if (now != ig) {
-                ig = now;
-                Log.d(TAG, "Detection -> IG Active: " + ig + " (Pkg: " + currentPkg + ")");
-                if (kbd) updateNotification();
+            if (detected != igActive) {
+                igActive = detected;
+                Log.d(TAG, "Instagram Focus: " + igActive);
+                updateNotification();
             }
         }
     }
 
     @Override
     protected boolean onKeyEvent(KeyEvent e) {
-        // Log to see if keys are actually being caught
-        if (e.getAction() == KeyEvent.ACTION_UP && e.getKeyCode() == KeyEvent.KEYCODE_ENTER) {
-            Log.d(TAG, "Enter pressed. Kbd: " + kbd + " IG: " + ig);
-            if (kbd && ig) {
-                tapAt(SEND_X, SEND_Y);
-                return true; // Consume the key
-            }
+        if (!kbdConnected || !igActive) return false;
+
+        int keyCode = e.getKeyCode();
+        int action = e.getAction();
+
+        // 1. Track Shift Key State
+        if (keyCode == KeyEvent.KEYCODE_SHIFT_LEFT || keyCode == KeyEvent.KEYCODE_SHIFT_RIGHT) {
+            isShiftPressed = (action == KeyEvent.ACTION_DOWN);
+            return false; // Let shift pass through normally
         }
+
+        // 2. Handle ENTER -> Send Tap
+        if (keyCode == KeyEvent.KEYCODE_ENTER) {
+            if (action == KeyEvent.ACTION_UP) {
+                Log.d(TAG, "Action: Tap Send");
+                performTap(SEND_X, SEND_Y, 50);
+            }
+            return true; // Consume Enter
+        }
+
+        // 3. Handle DPAD UP -> Swipe Down (Scroll Up)
+        if (keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+            if (action == KeyEvent.ACTION_DOWN) {
+                performSwipe(CENTER_X, CENTER_Y, CENTER_X, CENTER_Y + 800);
+            }
+            return true;
+        }
+
+        // 4. Handle DPAD DOWN -> Swipe Up (Scroll Down)
+        if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+            if (action == KeyEvent.ACTION_DOWN) {
+                performSwipe(CENTER_X, CENTER_Y, CENTER_X, CENTER_Y - 800);
+            }
+            return true;
+        }
+
+        // 5. Handle Shift + Any Key -> Long Press
+        if (isShiftPressed && action == KeyEvent.ACTION_DOWN) {
+            Log.d(TAG, "Action: Long Press");
+            performTap(CENTER_X, CENTER_Y, 1500); 
+            return true;
+        }
+
         return false;
     }
 
+    private void performTap(int x, int y, int duration) {
+        Path path = new Path();
+        path.moveTo(x, y);
+        GestureDescription.StrokeDescription stroke = new GestureDescription.StrokeDescription(path, 0, duration);
+        dispatchGesture(new GestureDescription.Builder().addStroke(stroke).build(), null, null);
+    }
+
+    private void performSwipe(int x1, int y1, int x2, int y2) {
+        Path path = new Path();
+        path.moveTo(x1, y1);
+        path.lineTo(x2, y2);
+        GestureDescription.StrokeDescription stroke = new GestureDescription.StrokeDescription(path, 0, 300);
+        dispatchGesture(new GestureDescription.Builder().addStroke(stroke).build(), null, null);
+    }
+
     private void updateNotification() {
-        if (!kbd) {
+        if (!kbdConnected) {
             nm.cancel(1);
             return;
         }
-        String txt = ig ? "INSTAGRAM ACTIVE" : "Waiting for Instagram...";
+        String status = igActive ? "READY: IG Detected" : "WAITING: Open Instagram";
+        Notification.Builder nb = (Build.VERSION.SDK_INT >= 26) ? 
+            new Notification.Builder(this, "kbd_chan") : new Notification.Builder(this);
+
+        nb.setContentTitle("Keyboard Macro Service")
+          .setContentText(status)
+          .setSmallIcon(android.R.drawable.ic_dialog_info)
+          .setOngoing(true);
         
-        Notification.Builder builder;
-        if (Build.VERSION.SDK_INT >= 26) {
-            builder = new Notification.Builder(this, "kbd");
-        } else {
-            builder = new Notification.Builder(this);
-        }
-
-        Notification n = builder
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setContentTitle("Keyboard Service")
-            .setContentText(txt)
-            .setOngoing(true)
-            .build();
-            
-        nm.notify(1, n);
+        nm.notify(1, nb.build());
     }
 
-    private void tapAt(int x, int y) {
-        if (Build.VERSION.SDK_INT < 24) return;
-        Path p = new Path();
-        p.moveTo(x, y);
-        GestureDescription.StrokeDescription s = new GestureDescription.StrokeDescription(p, 0, 50);
-        dispatchGesture(new GestureDescription.Builder().addStroke(s).build(), null, null);
-    }
-
-    private void checkKbd() {
+    private void checkKeyboardStatus() {
         boolean found = false;
-        int[] ids = InputDevice.getDeviceIds();
-        for (int id : ids) {
+        for (int id : InputDevice.getDeviceIds()) {
             InputDevice d = InputDevice.getDevice(id);
             if (d != null && !d.isVirtual() && (d.getSources() & InputDevice.SOURCE_KEYBOARD) != 0) {
                 found = true;
                 break;
             }
         }
-        if (found != kbd) {
-            kbd = found;
+        if (found != kbdConnected) {
+            kbdConnected = found;
             updateNotification();
         }
     }
 
-    @Override public void onInputDeviceAdded(int id) { checkKbd(); }
-    @Override public void onInputDeviceRemoved(int id) { checkKbd(); }
-    @Override public void onInputDeviceChanged(int id) { checkKbd(); }
+    @Override public void onInputDeviceAdded(int id) { checkKeyboardStatus(); }
+    @Override public void onInputDeviceRemoved(int id) { checkKeyboardStatus(); }
+    @Override public void onInputDeviceChanged(int id) { checkKeyboardStatus(); }
     @Override public void onInterrupt() {}
-        }
+                }
