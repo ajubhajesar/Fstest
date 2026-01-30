@@ -8,6 +8,7 @@ import android.app.NotificationManager;
 import android.graphics.Path;
 import android.hardware.input.InputManager;
 import android.os.Build;
+import android.util.Log;
 import android.view.InputDevice;
 import android.view.KeyEvent;
 import android.view.accessibility.AccessibilityEvent;
@@ -15,6 +16,7 @@ import android.view.accessibility.AccessibilityEvent;
 public class KeyboardHelperService extends AccessibilityService
         implements InputManager.InputDeviceListener {
 
+    private static final String TAG = "IGKeyboard";
     private static final String INSTAGRAM = "com.instagram.android";
     private static final String CHANNEL_ID = "ig_kbd";
     private static final int NOTIFY_ID = 100;
@@ -30,6 +32,7 @@ public class KeyboardHelperService extends AccessibilityService
 
     @Override
     public void onServiceConnected() {
+        Log.d(TAG, "Service connected");
         inputManager = (InputManager) getSystemService(INPUT_SERVICE);
         notifyManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         
@@ -58,6 +61,7 @@ public class KeyboardHelperService extends AccessibilityService
             InputDevice dev = InputDevice.getDevice(ids[i]);
             if (dev != null && !dev.isVirtual()) {
                 if ((dev.getSources() & InputDevice.SOURCE_KEYBOARD) != 0) {
+                    Log.d(TAG, "Physical keyboard found: " + dev.getName());
                     found = true;
                     break;
                 }
@@ -66,6 +70,7 @@ public class KeyboardHelperService extends AccessibilityService
         
         if (found != hasKeyboard) {
             hasKeyboard = found;
+            Log.d(TAG, "Keyboard state changed: " + hasKeyboard);
             updateNotify();
         }
     }
@@ -99,20 +104,25 @@ public class KeyboardHelperService extends AccessibilityService
         }
 
         notifyManager.notify(NOTIFY_ID, n);
+        Log.d(TAG, "Notification updated: kbd=" + hasKeyboard + " ig=" + isInstagram);
     }
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
-        // Only check window state changes
         if (event.getEventType() != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             return;
         }
 
         CharSequence pkg = event.getPackageName();
+        if (pkg != null) {
+            Log.d(TAG, "Window changed: " + pkg.toString());
+        }
+        
         boolean nowIG = (pkg != null && INSTAGRAM.equals(pkg.toString()));
         
         if (nowIG != isInstagram) {
             isInstagram = nowIG;
+            Log.d(TAG, "Instagram state changed: " + isInstagram);
             if (hasKeyboard) {
                 updateNotify();
             }
@@ -136,6 +146,8 @@ public class KeyboardHelperService extends AccessibilityService
             return false;
         }
 
+        Log.d(TAG, "ENTER pressed - action: " + event.getAction());
+
         // Tap on UP, but consume both DOWN and UP
         if (event.getAction() == KeyEvent.ACTION_UP) {
             tapSend();
@@ -146,8 +158,11 @@ public class KeyboardHelperService extends AccessibilityService
 
     private void tapSend() {
         if (Build.VERSION.SDK_INT < 24) {
+            Log.d(TAG, "API level too low for gesture");
             return;
         }
+
+        Log.d(TAG, "Tapping at (" + SEND_X + "," + SEND_Y + ")");
 
         Path p = new Path();
         p.moveTo(SEND_X, SEND_Y);
@@ -164,11 +179,13 @@ public class KeyboardHelperService extends AccessibilityService
 
     @Override
     public void onInputDeviceAdded(int id) {
+        Log.d(TAG, "Input device added: " + id);
         checkKeyboard();
     }
 
     @Override
     public void onInputDeviceRemoved(int id) {
+        Log.d(TAG, "Input device removed: " + id);
         checkKeyboard();
     }
 
@@ -179,10 +196,12 @@ public class KeyboardHelperService extends AccessibilityService
 
     @Override
     public void onInterrupt() {
+        Log.d(TAG, "Service interrupted");
     }
 
     @Override
     public void onDestroy() {
+        Log.d(TAG, "Service destroyed");
         if (inputManager != null) {
             inputManager.unregisterInputDeviceListener(this);
         }
