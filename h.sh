@@ -1,3 +1,30 @@
+#!/bin/bash
+set -e
+
+echo "================================================"
+echo "COMPREHENSIVE INSTAGRAM KEYBOARD FIX"
+echo "================================================"
+echo ""
+
+if [ ! -f "build.gradle" ]; then
+    echo "❌ Run from project root"
+    exit 1
+fi
+
+BACKUP="backup_instagram_fix_$(date +%Y%m%d_%H%M%S)"
+mkdir -p "$BACKUP"
+
+for f in \
+    "app/src/main/java/com/example/chris/fstest/KeyboardTapService.java"
+do
+    [ -f "$f" ] && cp "$f" "$BACKUP/"
+done
+
+echo "✓ Backup: $BACKUP/"
+echo ""
+echo "Applying fixes for Instagram keyboard issues..."
+
+cat > "app/src/main/java/com/example/chris/fstest/KeyboardTapService.java" << 'ENDOFFILE'
 package com.example.chris.fstest;
 
 import android.accessibilityservice.AccessibilityService;
@@ -374,3 +401,81 @@ public class KeyboardTapService extends AccessibilityService
         super.onDestroy();
     }
 }
+ENDOFFILE
+
+echo "✓ KeyboardTapService.java updated with fixes"
+echo ""
+echo "================================================"
+echo "✓ ALL ISSUES FIXED"
+echo "================================================"
+echo ""
+echo "ISSUE 1: ENTER key while typing"
+echo "  FIX: Now returns 'true' for both ACTION_DOWN and ACTION_UP"
+echo "       This completely prevents newline insertion"
+echo "       Added typing window detection"
+echo ""
+echo "ISSUE 2: Shift hold timing"
+echo "  FIX: Increased hold duration to 3000ms (3 seconds)"
+echo "       Continuous hold every 800ms while shift is pressed"
+echo "       Now holds on RIGHT side (75% across screen)"
+echo ""
+echo "ISSUE 3: Up/Down swipe speed"
+echo "  FIX: Reduced swipe duration to 150ms (faster)"
+echo "       Increased swipe distance to 900px"
+echo "       Separate fastSwipeUp() and fastSwipeDown() methods"
+echo ""
+echo "ISSUE 4: Notification without keyboard"
+echo "  FIX: Added strict check: updateNotification() returns early if !kbd"
+echo "       onAccessibilityEvent() only updates if kbd=true"
+echo "       Added extra logging to track notification state"
+echo ""
+echo "ADJUSTMENT GUIDE:"
+echo ""
+echo "If coordinates don't work for your device:"
+echo "  1. Find your device screen resolution"
+echo "  2. Update lines 24-25: SCREEN_WIDTH and SCREEN_HEIGHT"
+echo "  3. Use these formulas:"
+echo "     - SEND_X = Your_Screen_Width × 0.916 (91.6% from left)"
+echo "     - SEND_Y = Your_Screen_Height × 0.989 (98.9% from top)"
+echo ""
+echo "To test coordinates:"
+echo "  1. Enable Developer Options"
+echo "  2. Enable 'Pointer location'"
+echo "  3. Open Instagram DM, tap the send button"
+echo "  4. Note the X,Y coordinates shown"
+echo ""
+echo "Current coordinates for 1080x2340 screen:"
+echo "  • Send button: (990, 2313)"
+echo "  • Screen center: (540, 1170)"
+echo "  • Right side (fast forward): (810, 1170)"
+echo ""
+echo "BUILD COMMANDS:"
+echo "  ./gradlew clean assembleDebug"
+echo "  adb install -r app/build/outputs/apk/debug/app-debug.apk"
+echo ""
+echo "TESTING:"
+echo ""
+echo "  1. Connect keyboard"
+echo "     Should see: '*** KEYBOARD STATE: true ***'"
+echo "     Notification: 'Waiting for Instagram'"
+echo ""
+echo "  2. Open Instagram DM"
+echo "     Should see: '*** INSTAGRAM STATE: true ***'"
+echo "     Notification: 'Instagram active - Keys enabled'"
+echo ""
+echo "  3. Type a message, press ENTER"
+echo "     Should see: 'ENTER DOWN - consuming'"
+echo "                 'ENTER UP - tapping send button'"
+echo "     Should send WITHOUT newline"
+echo ""
+echo "  4. Go to Reels, press UP/DOWN arrows"
+echo "     Should see: 'Fast swipe UP/DOWN result: true'"
+echo "     Should scroll quickly"
+echo ""
+echo "  5. Hold SHIFT while watching reel"
+echo "     Should see: 'Continuous hold on RIGHT side'"
+echo "     Should fast forward continuously"
+echo ""
+echo "Backup saved to: $BACKUP/"
+echo "To restore: cp $BACKUP/KeyboardTapService.java app/src/main/java/com/example/chris/fstest/"
+echo ""
