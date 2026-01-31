@@ -6,12 +6,14 @@ import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.view.View;
+import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.CompoundButton;
 import android.widget.LinearLayout;
 import android.view.ViewGroup;
+import android.graphics.Color;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
@@ -46,18 +48,28 @@ public class MainActivity extends Activity {
         // Root layout
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setBackgroundColor(Color.parseColor("#f5f5f5"));
         layout.setPadding(16, 16, 16, 16);
         
         // Settings Panel (Checkboxes)
         LinearLayout settingsPanel = new LinearLayout(this);
         settingsPanel.setOrientation(LinearLayout.VERTICAL);
-        settingsPanel.setBackgroundColor(0xFFF0F0F0);
+        settingsPanel.setBackgroundColor(Color.parseColor("#e0e0e0"));
         settingsPanel.setPadding(16, 16, 16, 16);
+        
+        LinearLayout.LayoutParams settingsParams = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        );
+        settingsParams.setMargins(0, 0, 0, 16);
+        settingsPanel.setLayoutParams(settingsParams);
         
         // Tank Fill Checkbox
         CheckBox cbTankFill = new CheckBox(this);
         cbTankFill.setText("ટાંકો ભરાઈ રહ્યો છે (Tank filling today)");
         cbTankFill.setChecked(prefs.getBoolean(KEY_TANK_FILL, false));
+        cbTankFill.setTextSize(16);
+        cbTankFill.setPadding(8, 8, 8, 8);
         cbTankFill.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
@@ -70,6 +82,8 @@ public class MainActivity extends Activity {
         CheckBox cbSwap = new CheckBox(this);
         cbSwap.setText("મફત/સોસાયટી અદલાબદલી (Swap Mafat/Society order)");
         cbSwap.setChecked(prefs.getBoolean(KEY_SWAP_MS, false));
+        cbSwap.setTextSize(16);
+        cbSwap.setPadding(8, 8, 8, 8);
         cbSwap.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
@@ -82,18 +96,37 @@ public class MainActivity extends Activity {
         settingsPanel.addView(cbSwap);
         layout.addView(settingsPanel);
         
-        // WebView for schedule display
-        webView = new WebView(this);
-        webView.getSettings().setJavaScriptEnabled(false);
-        webView.getSettings().setSupportZoom(false);
+        // Card-like container for WebView
+        LinearLayout webViewContainer = new LinearLayout(this);
+        webViewContainer.setOrientation(LinearLayout.VERTICAL);
+        webViewContainer.setBackgroundColor(Color.WHITE);
+        webViewContainer.setPadding(0, 0, 0, 0);
         
-        LinearLayout.LayoutParams webParams = new LinearLayout.LayoutParams(
+        LinearLayout.LayoutParams containerParams = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
             0,
             1.0f
         );
+        containerParams.setMargins(0, 0, 0, 16);
+        webViewContainer.setLayoutParams(containerParams);
+        
+        // WebView for schedule display
+        webView = new WebView(this);
+        webView.setBackgroundColor(Color.WHITE);
+        
+        WebSettings ws = webView.getSettings();
+        ws.setJavaScriptEnabled(false);
+        ws.setSupportZoom(false);
+        ws.setDefaultTextEncodingName("utf-8");
+        
+        LinearLayout.LayoutParams webParams = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT
+        );
         webView.setLayoutParams(webParams);
-        layout.addView(webView);
+        
+        webViewContainer.addView(webView);
+        layout.addView(webViewContainer);
         
         // Enable Keyboard Service Button
         Button btn = new Button(this);
@@ -104,7 +137,6 @@ public class MainActivity extends Activity {
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.WRAP_CONTENT
         );
-        btnParams.setMargins(16, 16, 16, 16);
         btn.setLayoutParams(btnParams);
         
         // Java 7 compatible onClick - NO lambda
@@ -119,12 +151,19 @@ public class MainActivity extends Activity {
         layout.addView(btn);
         setContentView(layout);
         
-        // Initial load
-        refreshSchedule();
+        // Initial load with delay to ensure WebView is ready
+        webView.post(new Runnable() {
+            @Override
+            public void run() {
+                refreshSchedule();
+            }
+        });
     }
     
     private void refreshSchedule() {
-        webView.loadData(getScheduleHTML(), "text/html; charset=UTF-8", null);
+        String html = getScheduleHTML();
+        // Use loadDataWithBaseURL to properly handle special characters
+        webView.loadDataWithBaseURL(null, html, "text/html; charset=UTF-8", "UTF-8", null);
     }
     
     private String getScheduleHTML() {
@@ -182,7 +221,7 @@ public class MainActivity extends Activity {
         // Current date string
         String dateStr = new SimpleDateFormat("EEEE, dd MMMM yyyy", Locale.ENGLISH).format(new Date());
         
-        // Full HTML
+        // Full HTML - removed # from CSS colors to avoid encoding issues, using rgb() instead
         return "<!DOCTYPE html>" +
             "<html lang='gu'>" +
             "<head>" +
@@ -191,17 +230,17 @@ public class MainActivity extends Activity {
             "<title>પાણી સમયપત્રક</title>" +
             "<style>" +
             "*{box-sizing:border-box;margin:0;padding:0}" +
-            "body{font-family:system-ui,sans-serif;background:#f5f5f5;padding:12px}" +
-            ".card{background:#fff;border-radius:12px;padding:16px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.08)}" +
-            "h1{font-size:20px;margin-bottom:12px;color:#222;text-align:center;font-weight:700}" +
-            ".badge{display:inline-block;font-size:14px;font-weight:600;color:#0066cc;background:#e6f3ff;padding:6px 12px;border-radius:8px;margin-bottom:10px}" +
-            ".date{font-size:13px;color:#666;margin-bottom:12px;text-align:center}" +
-            ".slot{padding:12px 10px;border-top:1px solid #eee;display:flex;gap:12px;align-items:center}" +
+            "body{font-family:system-ui,sans-serif;background:rgb(245,245,245);padding:12px}" +
+            ".card{background:rgb(255,255,255);border-radius:12px;padding:16px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.08)}" +
+            "h1{font-size:20px;margin-bottom:12px;color:rgb(34,34,34);text-align:center;font-weight:700}" +
+            ".badge{display:inline-block;font-size:14px;font-weight:600;color:rgb(0,102,204);background:rgb(230,243,255);padding:6px 12px;border-radius:8px;margin-bottom:10px}" +
+            ".date{font-size:13px;color:rgb(102,102,102);margin-bottom:12px;text-align:center}" +
+            ".slot{padding:12px 10px;border-top:1px solid rgb(238,238,238);display:flex;gap:12px;align-items:center}" +
             ".slot:first-child{border-top:none}" +
-            ".time{min-width:90px;font-weight:600;color:#0066cc;font-size:14px}" +
-            ".label{flex:1;color:#333;font-size:15px}" +
-            ".note{background:#fff9e6;padding:14px;border-radius:10px;font-size:13px;line-height:1.6;color:#856404;margin-top:12px}" +
-            ".kbd-info{background:#f0f8ff;padding:14px;border-radius:10px;margin-top:12px;font-size:13px;line-height:1.6;color:#004085}" +
+            ".time{min-width:90px;font-weight:600;color:rgb(0,102,204);font-size:14px}" +
+            ".label{flex:1;color:rgb(51,51,51);font-size:15px}" +
+            ".note{background:rgb(255,249,230);padding:14px;border-radius:10px;font-size:13px;line-height:1.6;color:rgb(133,100,4);margin-top:12px}" +
+            ".kbd-info{background:rgb(240,248,255);padding:14px;border-radius:10px;margin-top:12px;font-size:13px;line-height:1.6;color:rgb(0,64,133)}" +
             ".kbd-info strong{display:block;font-size:14px;margin-bottom:6px}" +
             "</style>" +
             "</head>" +
@@ -238,5 +277,5 @@ public class MainActivity extends Activity {
         sb.append("<div class='label'>").append(label).append("</div>");
         sb.append("</div>");
     }
-            }
-                        
+                                  }
+                    
