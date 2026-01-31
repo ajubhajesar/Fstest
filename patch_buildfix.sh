@@ -1,3 +1,30 @@
+#!/bin/bash
+set -e
+
+echo "================================================"
+echo "FIX: Build Error - notify() Method Conflict"
+echo "================================================"
+echo ""
+
+if [ ! -f "build.gradle" ]; then
+    echo "❌ Run from project root"
+    exit 1
+fi
+
+BACKUP="backup_compile_fix_$(date +%Y%m%d_%H%M%S)"
+mkdir -p "$BACKUP"
+
+for f in \
+    "app/src/main/java/com/example/chris/fstest/KeyboardTapService.java"
+do
+    [ -f "$f" ] && cp "$f" "$BACKUP/"
+done
+
+echo "✓ Backup: $BACKUP/"
+echo ""
+echo "Fixing build error..."
+
+cat > "app/src/main/java/com/example/chris/fstest/KeyboardTapService.java" << 'ENDOFFILE'
 package com.example.chris.fstest;
 
 import android.accessibilityservice.AccessibilityService;
@@ -247,3 +274,20 @@ public class KeyboardTapService extends AccessibilityService
         super.onDestroy();
     }
 }
+ENDOFFILE
+
+echo "✓ KeyboardTapService.java fixed"
+echo ""
+echo "================================================"
+echo "✓ BUILD ERROR FIXED"
+echo "================================================"
+echo ""
+echo "WHAT WAS FIXED:"
+echo "  ✓ Renamed notify() to updateNotif()"
+echo "  ✓ Avoided Object.notify() method conflict"
+echo ""
+echo "BUILD:"
+echo "  ./gradlew clean assembleDebug"
+echo ""
+echo "Backup: $BACKUP/"
+echo ""

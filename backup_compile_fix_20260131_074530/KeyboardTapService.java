@@ -21,10 +21,15 @@ public class KeyboardTapService extends AccessibilityService
     private static final String TAG = "IGKbd";
     private static final String IG = "com.instagram.android";
     
+    // DM Send button coordinates
     private static final int SEND_X = 990;
     private static final int SEND_Y = 2313;
+    
+    // Screen center for swipe gestures
     private static final int CENTER_X = 540;
     private static final int CENTER_Y = 1170;
+    
+    // Swipe distances
     private static final int SWIPE_UP = -800;
     private static final int SWIPE_DOWN = 800;
 
@@ -78,11 +83,11 @@ public class KeyboardTapService extends AccessibilityService
         if (found != kbd) {
             kbd = found;
             Log.d(TAG, "*** KEYBOARD STATE CHANGED: " + kbd + " ***");
-            updateNotif();
+            notify();
         }
     }
 
-    private void updateNotif() {
+    private void notify() {
         if (!kbd) {
             nm.cancel(1);
             Log.d(TAG, "Notification CANCELLED (no keyboard)");
@@ -93,6 +98,7 @@ public class KeyboardTapService extends AccessibilityService
         
         Log.d(TAG, "Creating notification: kbd=" + kbd + " ig=" + ig + " text=" + txt);
         
+        // Create intent to open Instagram
         Intent intent = new Intent(Intent.ACTION_MAIN);
         intent.addCategory(Intent.CATEGORY_LAUNCHER);
         intent.setPackage(IG);
@@ -145,7 +151,7 @@ public class KeyboardTapService extends AccessibilityService
                 ig = nowIG;
                 Log.d(TAG, "*** INSTAGRAM STATE CHANGED: " + ig + " ***");
                 if (kbd) {
-                    updateNotif();
+                    notify();
                 }
             }
         }
@@ -153,44 +159,59 @@ public class KeyboardTapService extends AccessibilityService
 
     @Override
     protected boolean onKeyEvent(KeyEvent e) {
-        if (e.getDevice() != null && e.getDevice().isVirtual()) return false;
-        if (!kbd || !ig) return false;
+        if (e.getDevice() != null && e.getDevice().isVirtual()) {
+            return false;
+        }
+        
+        if (!kbd || !ig) {
+            return false;
+        }
         
         int key = e.getKeyCode();
         int action = e.getAction();
         
+        // Track Shift
         if (key == KeyEvent.KEYCODE_SHIFT_LEFT || key == KeyEvent.KEYCODE_SHIFT_RIGHT) {
-            shiftHeld = (action == KeyEvent.ACTION_DOWN);
-            Log.d(TAG, "Shift " + (shiftHeld ? "DOWN" : "UP"));
+            if (action == KeyEvent.ACTION_DOWN) {
+                shiftHeld = true;
+                Log.d(TAG, "Shift DOWN");
+            } else if (action == KeyEvent.ACTION_UP) {
+                shiftHeld = false;
+                Log.d(TAG, "Shift UP");
+            }
             return false;
         }
         
+        // ENTER -> Send
         if (key == KeyEvent.KEYCODE_ENTER) {
             if (action == KeyEvent.ACTION_UP) {
-                Log.d(TAG, "ENTER -> tap Send");
+                Log.d(TAG, "ENTER -> tap Send at (" + SEND_X + "," + SEND_Y + ")");
                 tapAt(SEND_X, SEND_Y, 50);
             }
             return true;
         }
         
+        // UP -> Previous reel
         if (key == KeyEvent.KEYCODE_DPAD_UP) {
             if (action == KeyEvent.ACTION_DOWN) {
-                Log.d(TAG, "UP -> swipe down");
+                Log.d(TAG, "UP -> swipe down (previous reel)");
                 swipe(CENTER_X, CENTER_Y, CENTER_X, CENTER_Y + SWIPE_DOWN, 300);
             }
             return true;
         }
         
+        // DOWN -> Next reel
         if (key == KeyEvent.KEYCODE_DPAD_DOWN) {
             if (action == KeyEvent.ACTION_DOWN) {
-                Log.d(TAG, "DOWN -> swipe up");
+                Log.d(TAG, "DOWN -> swipe up (next reel)");
                 swipe(CENTER_X, CENTER_Y, CENTER_X, CENTER_Y + SWIPE_UP, 300);
             }
             return true;
         }
         
+        // SHIFT held -> Long press
         if (shiftHeld && action == KeyEvent.ACTION_DOWN) {
-            Log.d(TAG, "Shift held -> long press");
+            Log.d(TAG, "Shift held -> long press for fast forward");
             longPress(CENTER_X, CENTER_Y, 2000);
             return true;
         }
@@ -198,46 +219,65 @@ public class KeyboardTapService extends AccessibilityService
         return false;
     }
 
-    private void tapAt(int x, int y, int dur) {
-        if (Build.VERSION.SDK_INT < 24) return;
+    private void tapAt(int x, int y, int duration) {
+        if (Build.VERSION.SDK_INT < 24) {
+            Log.d(TAG, "Gesture API not available (API < 24)");
+            return;
+        }
         Path p = new Path();
         p.moveTo(x, y);
-        dispatchGesture(new GestureDescription.Builder()
-            .addStroke(new GestureDescription.StrokeDescription(p, 0, dur))
-            .build(), null, null);
+        GestureDescription.StrokeDescription s = 
+            new GestureDescription.StrokeDescription(p, 0, duration);
+        boolean dispatched = dispatchGesture(
+            new GestureDescription.Builder().addStroke(s).build(), null, null);
+        Log.d(TAG, "Tap dispatched: " + dispatched);
     }
 
-    private void swipe(int x1, int y1, int x2, int y2, int dur) {
+    private void swipe(int x1, int y1, int x2, int y2, int duration) {
         if (Build.VERSION.SDK_INT < 24) return;
         Path p = new Path();
         p.moveTo(x1, y1);
         p.lineTo(x2, y2);
-        dispatchGesture(new GestureDescription.Builder()
-            .addStroke(new GestureDescription.StrokeDescription(p, 0, dur))
-            .build(), null, null);
+        GestureDescription.StrokeDescription s = 
+            new GestureDescription.StrokeDescription(p, 0, duration);
+        boolean dispatched = dispatchGesture(
+            new GestureDescription.Builder().addStroke(s).build(), null, null);
+        Log.d(TAG, "Swipe dispatched: " + dispatched);
     }
 
-    private void longPress(int x, int y, int dur) {
+    private void longPress(int x, int y, int duration) {
         if (Build.VERSION.SDK_INT < 24) return;
         Path p = new Path();
         p.moveTo(x, y);
-        dispatchGesture(new GestureDescription.Builder()
-            .addStroke(new GestureDescription.StrokeDescription(p, 0, dur))
-            .build(), null, null);
+        GestureDescription.StrokeDescription s = 
+            new GestureDescription.StrokeDescription(p, 0, duration);
+        boolean dispatched = dispatchGesture(
+            new GestureDescription.Builder().addStroke(s).build(), null, null);
+        Log.d(TAG, "Long press dispatched: " + dispatched);
     }
 
-    @Override public void onInputDeviceAdded(int id) { 
-        Log.d(TAG, "Device ADDED: " + id);
+    @Override 
+    public void onInputDeviceAdded(int id) { 
+        Log.d(TAG, ">>> Device ADDED: " + id);
         checkKbd(); 
     }
     
-    @Override public void onInputDeviceRemoved(int id) { 
-        Log.d(TAG, "Device REMOVED: " + id);
+    @Override 
+    public void onInputDeviceRemoved(int id) { 
+        Log.d(TAG, ">>> Device REMOVED: " + id);
         checkKbd(); 
     }
     
-    @Override public void onInputDeviceChanged(int id) { checkKbd(); }
-    @Override public void onInterrupt() {}
+    @Override 
+    public void onInputDeviceChanged(int id) { 
+        Log.d(TAG, ">>> Device CHANGED: " + id);
+        checkKbd(); 
+    }
+    
+    @Override 
+    public void onInterrupt() {
+        Log.d(TAG, "!!! SERVICE INTERRUPTED !!!");
+    }
     
     @Override
     public void onDestroy() {
