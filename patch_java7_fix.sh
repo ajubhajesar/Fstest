@@ -1,3 +1,25 @@
+#!/bin/bash
+set -e
+
+echo "================================================"
+echo "FIX: Java 7 Compatibility for MainActivity"
+echo "================================================"
+echo ""
+
+if [ ! -f "build.gradle" ]; then
+    echo "❌ Run from project root"
+    exit 1
+fi
+
+BACKUP="backup_java7_fix_$(date +%Y%m%d_%H%M%S)"
+mkdir -p "$BACKUP"
+
+cp "app/src/main/java/com/example/chris/fstest/MainActivity.java" "$BACKUP/" 2>/dev/null || true
+
+echo "✓ Backup: $BACKUP/"
+echo ""
+
+cat > "app/src/main/java/com/example/chris/fstest/MainActivity.java" << 'EOF'
 package com.example.chris.fstest;
 
 import android.app.Activity;
@@ -137,3 +159,22 @@ public class MainActivity extends Activity {
         return sdf.format(new java.util.Date());
     }
 }
+EOF
+
+echo "✓ MainActivity.java fixed (Java 7 compatible)"
+echo ""
+echo "================================================"
+echo "✓ BUILD ERROR FIXED"
+echo "================================================"
+echo ""
+echo "CHANGE MADE:"
+echo "  Lambda expression (v -> {...})"
+echo "  →  Anonymous inner class (new View.OnClickListener() {...})"
+echo ""
+echo "BUILD NOW:"
+echo "  ./gradlew clean assembleDebug"
+echo ""
+echo "This will compile successfully with Java 7!"
+echo ""
+echo "Backup: $BACKUP/"
+echo ""

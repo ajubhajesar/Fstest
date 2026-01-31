@@ -4,7 +4,6 @@ import android.app.Activity;
 import android.content.Intent;
 import android.os.Bundle;
 import android.provider.Settings;
-import android.view.View;
 import android.webkit.WebView;
 import android.widget.Button;
 import android.widget.LinearLayout;
@@ -45,13 +44,8 @@ public class MainActivity extends Activity {
         btnParams.setMargins(16, 0, 16, 16);
         btn.setLayoutParams(btnParams);
         
-        // Java 7 compatible onClick - NO lambda
-        btn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Intent intent = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS);
-                startActivity(intent);
-            }
+        btn.setOnClickListener(v -> {
+            startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));
         });
         
         layout.addView(webView);
@@ -120,8 +114,7 @@ public class MainActivity extends Activity {
             "Physical keyboard સાથે Instagram માં:<br>" +
             "• <strong>ENTER</strong> → Send message (DM માં)<br>" +
             "• <strong>UP ↑</strong> → Previous reel<br>" +
-            "• <strong>DOWN ↓</strong> → Next reel<br>" +
-            "• <strong>SHIFT (hold)</strong> → Fast forward" +
+            "• <strong>DOWN ↓</strong> → Next reel" +
             "</div>" +
             
             "</div>" +
@@ -130,10 +123,7 @@ public class MainActivity extends Activity {
     }
     
     private String getCurrentDate() {
-        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat(
-            "EEEE, dd MMMM yyyy", 
-            java.util.Locale.ENGLISH
-        );
+        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("EEEE, dd MMMM yyyy", java.util.Locale.ENGLISH);
         return sdf.format(new java.util.Date());
     }
 }
