@@ -49,7 +49,7 @@ public class KeyboardTapService extends AccessibilityService {
                 long now = System.currentTimeMillis();
                 if (now - lastEnter < 200) return true; // Debounce
                 lastEnter = now;
-                h.postDelayed(() -> tap(SEND_X, SEND_Y), 30);
+                h.postDelayed(new Runnable() { public void run() { tap(SEND_X, SEND_Y); } }, 30);
                 return true; // Block newline
             }
             return true; // Block UP too
