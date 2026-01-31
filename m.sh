@@ -1,3 +1,30 @@
+#!/bin/bash
+set -e
+
+echo "================================================"
+echo "SIMPLE INSTAGRAM KEYBOARD FIX - NO SHIFT"
+echo "================================================"
+echo ""
+
+if [ ! -f "build.gradle" ]; then
+    echo "❌ Run from project root"
+    exit 1
+fi
+
+BACKUP="backup_simple_fix_$(date +%Y%m%d_%H%M%S)"
+mkdir -p "$BACKUP"
+
+for f in \
+    "app/src/main/java/com/example/chris/fstest/KeyboardTapService.java"
+do
+    [ -f "$f" ] && cp "$f" "$BACKUP/"
+done
+
+echo "✓ Backup: $BACKUP/"
+echo ""
+echo "Applying simple Instagram keyboard fixes..."
+
+cat > "app/src/main/java/com/example/chris/fstest/KeyboardTapService.java" << 'ENDOFFILE'
 package com.example.chris.fstest;
 
 import android.accessibilityservice.AccessibilityService;
@@ -323,3 +350,75 @@ public class KeyboardTapService extends AccessibilityService
         super.onDestroy();
     }
 }
+ENDOFFILE
+
+echo "✓ KeyboardTapService.java updated"
+echo ""
+echo "================================================"
+echo "✓ FIXES APPLIED"
+echo "================================================"
+echo ""
+echo "FIX 1: ENTER Key Consumption"
+echo "  • ENTER now returns true for BOTH ACTION_DOWN and ACTION_UP"
+echo "  • This completely prevents newline insertion"
+echo "  • Taps send button coordinates (90% from left/top) on ACTION_UP"
+echo ""
+echo "FIX 2: Removed Shift Completely"
+echo "  • All shift-related code removed"
+echo "  • LEFT arrow now does 1-second long press on left side (rewind)"
+echo "  • RIGHT arrow now does 1-second long press on right side (fast forward)"
+echo ""
+echo "FIX 3: Notification Issue"
+echo "  • Notification ONLY shows when physical keyboard is connected (kbd=true)"
+echo "  • Triple-checked logic in updateNotification() and onAccessibilityEvent()"
+echo "  • Notification immediately removed when keyboard disconnected"
+echo "  • No notification when Instagram opens without keyboard"
+echo ""
+echo "KEY BINDINGS:"
+echo "  ENTER     - Send message (prevents newline)"
+echo "  UP arrow  - Swipe down (previous reel)"
+echo "  DOWN arrow- Swipe up (next reel)"
+echo "  LEFT arrow- Long press left side (rewind)"
+echo "  RIGHT arrow- Long press right side (fast forward)"
+echo ""
+echo "COORDINATES:"
+echo "  Screen: 1080x2340"
+echo "  Send button: (972, 2106) - bottom-right corner"
+echo "  Left rewind: (360, 1170) - 1/3 from left"
+echo "  Right FF: (720, 1170) - 2/3 from left"
+echo ""
+echo "ADJUST FOR YOUR DEVICE:"
+echo "  If coordinates don't work:"
+echo "  1. Find your screen resolution"
+echo "  2. Update SCREEN_WIDTH and SCREEN_HEIGHT (lines 25-26)"
+echo "  3. All coordinates auto-adjust based on screen size"
+echo ""
+echo "BUILD AND TEST:"
+echo "  ./gradlew clean assembleDebug"
+echo "  adb install -r app/build/outputs/apk/debug/app-debug.apk"
+echo ""
+echo "TEST PROCEDURE:"
+echo ""
+echo "1. WITHOUT keyboard:"
+echo "   - Open Instagram"
+echo "   - Should see NO notification"
+echo "   - Log: 'Instagram opened but no keyboard - no notification'"
+echo ""
+echo "2. WITH keyboard:"
+echo "   - Connect keyboard"
+echo "   - Should see notification: 'Waiting for Instagram'"
+echo "   - Log: '*** KEYBOARD: true ***'"
+echo ""
+echo "3. Open Instagram DM:"
+echo "   - Type message"
+echo "   - Press ENTER"
+echo "   - Should send WITHOUT newline"
+echo "   - Log: 'ENTER DOWN - consuming', 'ENTER UP - tapping send button'"
+echo ""
+echo "4. Open Reels:"
+echo "   - Press UP/DOWN arrows - should scroll"
+echo "   - Press LEFT/RIGHT arrows - should rewind/fast forward"
+echo ""
+echo "Backup saved to: $BACKUP/"
+echo "To restore: cp $BACKUP/KeyboardTapService.java app/src/main/java/com/example/chris/fstest/"
+echo ""
