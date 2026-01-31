@@ -25,17 +25,14 @@ public class KeyboardTapService extends AccessibilityService
     private static final int SEND_Y = 2313;
     private static final int CENTER_X = 540;
     private static final int CENTER_Y = 1170;
-    
-    // Smooth swipe parameters
-    private static final int SWIPE_DISTANCE = 1000;  // Increased for smoother swipes
-    private static final int SWIPE_DURATION = 400;   // Longer duration = smoother
+    private static final int SWIPE_UP = -800;
+    private static final int SWIPE_DOWN = 800;
 
     private InputManager im;
     private NotificationManager nm;
     private boolean kbd = false;
     private boolean ig = false;
     private boolean shiftHeld = false;
-    private long lastShiftTime = 0;
 
     @Override
     public void onServiceConnected() {
@@ -65,7 +62,7 @@ public class KeyboardTapService extends AccessibilityService
             InputDevice d = InputDevice.getDevice(ids[i]);
             if (d != null && !d.isVirtual() && 
                 (d.getSources() & InputDevice.SOURCE_KEYBOARD) != 0) {
-                Log.d(TAG, "Physical keyboard: " + d.getName());
+                Log.d(TAG, "Physical keyboard found: " + d.getName());
                 found = true;
                 break;
             }
@@ -79,13 +76,16 @@ public class KeyboardTapService extends AccessibilityService
     }
 
     private void updateNotif() {
+        // CRITICAL FIX: Only show notification when keyboard IS connected
         if (!kbd) {
             nm.cancel(1);
-            Log.d(TAG, "Notification cancelled");
+            Log.d(TAG, "Notification cancelled (no keyboard)");
             return;
         }
         
         String txt = ig ? "IG active - Keys enabled" : "Waiting for IG";
+        
+        Log.d(TAG, "Show notification: kbd=" + kbd + " ig=" + ig);
         
         Intent intent = new Intent(Intent.ACTION_MAIN);
         intent.addCategory(Intent.CATEGORY_LAUNCHER);
@@ -135,6 +135,7 @@ public class KeyboardTapService extends AccessibilityService
                 ig = nowIG;
                 Log.d(TAG, "*** INSTAGRAM: " + ig + " ***");
                 
+                // CRITICAL FIX: Only update notification if keyboard connected
                 if (kbd) {
                     updateNotif();
                 }
@@ -144,10 +145,12 @@ public class KeyboardTapService extends AccessibilityService
 
     @Override
     protected boolean onKeyEvent(KeyEvent e) {
-        // CRITICAL FIX: Don't check isVirtual() - just check if we have physical kbd
-        // The virtual keyboard being shown doesn't mean the key is from virtual keyboard
+        // Filter out virtual keyboard
+        if (e.getDevice() != null && e.getDevice().isVirtual()) {
+            return false;
+        }
         
-        // Only intercept when BOTH keyboard AND Instagram active
+        // CRITICAL: Only intercept when BOTH keyboard AND Instagram active
         if (!kbd || !ig) {
             return false;
         }
@@ -155,52 +158,49 @@ public class KeyboardTapService extends AccessibilityService
         int key = e.getKeyCode();
         int action = e.getAction();
         
-        Log.d(TAG, "Key event: code=" + key + " action=" + action + " device=" + 
-              (e.getDevice() != null ? e.getDevice().getName() : "null"));
-        
         // Track Shift key
         if (key == KeyEvent.KEYCODE_SHIFT_LEFT || key == KeyEvent.KEYCODE_SHIFT_RIGHT) {
             if (action == KeyEvent.ACTION_DOWN) {
                 shiftHeld = true;
-                lastShiftTime = System.currentTimeMillis();
-                Log.d(TAG, "Shift DOWN - starting hold timer");
-                
-                // Trigger long press immediately when shift is pressed
-                longPress(CENTER_X, CENTER_Y, 2000);
+                Log.d(TAG, "Shift DOWN");
             } else if (action == KeyEvent.ACTION_UP) {
                 shiftHeld = false;
-                Log.d(TAG, "Shift UP - held for " + 
-                      (System.currentTimeMillis() - lastShiftTime) + "ms");
+                Log.d(TAG, "Shift UP");
             }
-            return false; // Don't consume shift - let it work normally too
+            return false; // Don't consume shift
         }
         
         // ENTER -> Send message
         if (key == KeyEvent.KEYCODE_ENTER) {
             if (action == KeyEvent.ACTION_UP) {
-                Log.d(TAG, "ENTER -> tap Send at (" + SEND_X + "," + SEND_Y + ")");
+                Log.d(TAG, "ENTER -> tap (" + SEND_X + "," + SEND_Y + ")");
                 tapAt(SEND_X, SEND_Y, 50);
             }
             return true; // Consume to prevent newline
         }
         
-        // UP arrow -> Previous reel (swipe DOWN on screen)
+        // UP arrow -> Previous reel
         if (key == KeyEvent.KEYCODE_DPAD_UP) {
             if (action == KeyEvent.ACTION_DOWN) {
-                Log.d(TAG, "UP arrow -> swipe DOWN (previous reel)");
-                // Start from center, swipe DOWN to show previous reel
-                swipe(CENTER_X, CENTER_Y, CENTER_X, CENTER_Y + SWIPE_DISTANCE, SWIPE_DURATION);
+                Log.d(TAG, "UP -> swipe down (previous)");
+                swipe(CENTER_X, CENTER_Y, CENTER_X, CENTER_Y + SWIPE_DOWN, 300);
             }
             return true;
         }
         
-        // DOWN arrow -> Next reel (swipe UP on screen)
+        // DOWN arrow -> Next reel
         if (key == KeyEvent.KEYCODE_DPAD_DOWN) {
             if (action == KeyEvent.ACTION_DOWN) {
-                Log.d(TAG, "DOWN arrow -> swipe UP (next reel)");
-                // Start from center, swipe UP to show next reel
-                swipe(CENTER_X, CENTER_Y, CENTER_X, CENTER_Y - SWIPE_DISTANCE, SWIPE_DURATION);
+                Log.d(TAG, "DOWN -> swipe up (next)");
+                swipe(CENTER_X, CENTER_Y, CENTER_X, CENTER_Y + SWIPE_UP, 300);
             }
+            return true;
+        }
+        
+        // SHIFT held -> Long press (fast forward)
+        if (shiftHeld && action == KeyEvent.ACTION_DOWN) {
+            Log.d(TAG, "Shift held -> long press");
+            longPress(CENTER_X, CENTER_Y, 2000);
             return true;
         }
         
@@ -221,7 +221,7 @@ public class KeyboardTapService extends AccessibilityService
             .build();
             
         boolean sent = dispatchGesture(gesture, null, null);
-        Log.d(TAG, "Tap result: " + sent);
+        Log.d(TAG, "Tap dispatched: " + sent);
     }
 
     private void swipe(int x1, int y1, int x2, int y2, int dur) {
@@ -236,8 +236,7 @@ public class KeyboardTapService extends AccessibilityService
             .build();
             
         boolean sent = dispatchGesture(gesture, null, null);
-        Log.d(TAG, "Swipe from (" + x1 + "," + y1 + ") to (" + x2 + "," + y2 + 
-              ") dur=" + dur + "ms result: " + sent);
+        Log.d(TAG, "Swipe dispatched: " + sent);
     }
 
     private void longPress(int x, int y, int dur) {
@@ -251,7 +250,7 @@ public class KeyboardTapService extends AccessibilityService
             .build();
             
         boolean sent = dispatchGesture(gesture, null, null);
-        Log.d(TAG, "Long press at (" + x + "," + y + ") dur=" + dur + "ms result: " + sent);
+        Log.d(TAG, "Long press dispatched: " + sent);
     }
 
     @Override 

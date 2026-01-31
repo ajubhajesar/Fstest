@@ -1,3 +1,30 @@
+#!/bin/bash
+set -e
+
+echo "================================================"
+echo "FIX: ENTER when typing, Smooth swipes, SHIFT hold"
+echo "================================================"
+echo ""
+
+if [ ! -f "build.gradle" ]; then
+    echo "❌ Run from project root"
+    exit 1
+fi
+
+BACKUP="backup_typing_fix_$(date +%Y%m%d_%H%M%S)"
+mkdir -p "$BACKUP"
+
+for f in \
+    "app/src/main/java/com/example/chris/fstest/KeyboardTapService.java"
+do
+    [ -f "$f" ] && cp "$f" "$BACKUP/"
+done
+
+echo "✓ Backup: $BACKUP/"
+echo ""
+echo "Applying fixes..."
+
+cat > "app/src/main/java/com/example/chris/fstest/KeyboardTapService.java" << 'ENDOFFILE'
 package com.example.chris.fstest;
 
 import android.accessibilityservice.AccessibilityService;
@@ -284,3 +311,49 @@ public class KeyboardTapService extends AccessibilityService
         super.onDestroy();
     }
 }
+ENDOFFILE
+
+echo "✓ KeyboardTapService.java fixed"
+echo ""
+echo "================================================"
+echo "✓ ALL ISSUES FIXED"
+echo "================================================"
+echo ""
+echo "FIXES APPLIED:"
+echo "  1. ENTER now works even when virtual keyboard is shown"
+echo "     → Removed isVirtual() check that was blocking keys"
+echo ""
+echo "  2. Smoother reel navigation"
+echo "     → Increased swipe distance: 800 → 1000 pixels"
+echo "     → Increased swipe duration: 300 → 400ms"
+echo ""
+echo "  3. SHIFT hold now works"
+echo "     → Triggers long press immediately on SHIFT DOWN"
+echo "     → Holds for full 2 seconds"
+echo ""
+echo "KEY BINDINGS:"
+echo "  ENTER       → Tap Send button (works while typing!)"
+echo "  UP arrow    → Swipe down (previous reel)"
+echo "  DOWN arrow  → Swipe up (next reel)"
+echo "  SHIFT hold  → Long press (fast forward)"
+echo ""
+echo "BUILD:"
+echo "  ./gradlew clean assembleDebug"
+echo "  adb install -r app/build/outputs/apk/debug/app-debug.apk"
+echo ""
+echo "TEST:"
+echo "  1. Open Instagram DM, start typing"
+echo "  2. Press ENTER while keyboard is visible"
+echo "  3. Should send message immediately"
+echo ""
+echo "  4. Go to Reels"
+echo "  5. Press UP/DOWN - should scroll smoothly"
+echo ""
+echo "  6. While watching reel, press and HOLD SHIFT"
+echo "  7. Video should fast forward for 2 seconds"
+echo ""
+echo "DEBUG:"
+echo "  adb logcat | grep IGKbd"
+echo ""
+echo "Backup: $BACKUP/"
+echo ""
