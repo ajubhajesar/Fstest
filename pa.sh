@@ -1,3 +1,24 @@
+#!/bin/bash
+set -e
+
+echo "==============================================="
+echo "FINAL PATCH: Instagram Keyboard – All Fixes"
+echo "==============================================="
+
+FILE="app/src/main/java/com/example/chris/fstest/KeyboardTapService.java"
+
+if [ ! -f "$FILE" ]; then
+  echo "❌ KeyboardTapService.java not found"
+  exit 1
+fi
+
+BACKUP="backup_final_$(date +%Y%m%d_%H%M%S)"
+mkdir -p "$BACKUP"
+cp "$FILE" "$BACKUP/"
+
+echo "✓ Backup created: $BACKUP"
+
+cat > "$FILE" << 'EOF'
 package com.example.chris.fstest;
 
 import android.accessibilityservice.AccessibilityService;
@@ -219,3 +240,9 @@ public class KeyboardTapService extends AccessibilityService
     @Override public void onInputDeviceChanged(int id) { checkKeyboard(); }
     @Override public void onInterrupt() {}
 }
+EOF
+
+echo "==============================================="
+echo "✓ PATCH APPLIED SUCCESSFULLY"
+echo "==============================================="
+echo "Backup stored in: $BACKUP"
