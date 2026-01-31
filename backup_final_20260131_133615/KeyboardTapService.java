@@ -51,53 +51,59 @@ public class KeyboardTapService extends AccessibilityService
         im.registerInputDeviceListener(this, null);
         checkKbd();
         
-        Log.d(TAG, "Service ready");
+        Log.d(TAG, "Service initialized successfully");
     }
 
     private void checkKbd() {
         boolean found = false;
         int[] ids = InputDevice.getDeviceIds();
         
+        Log.d(TAG, "Checking " + ids.length + " input devices");
+        
         for (int i = 0; i < ids.length; i++) {
             InputDevice d = InputDevice.getDevice(ids[i]);
-            if (d != null && !d.isVirtual() && 
-                (d.getSources() & InputDevice.SOURCE_KEYBOARD) != 0) {
-                Log.d(TAG, "Physical keyboard found: " + d.getName());
-                found = true;
-                break;
+            if (d != null) {
+                boolean isVirtual = d.isVirtual();
+                boolean hasKeyboard = (d.getSources() & InputDevice.SOURCE_KEYBOARD) != 0;
+                
+                Log.d(TAG, "Device " + i + ": " + d.getName() + 
+                      " virtual=" + isVirtual + " keyboard=" + hasKeyboard);
+                
+                if (!isVirtual && hasKeyboard) {
+                    found = true;
+                }
             }
         }
         
         if (found != kbd) {
             kbd = found;
-            Log.d(TAG, "*** KEYBOARD: " + kbd + " ***");
+            Log.d(TAG, "*** KEYBOARD STATE CHANGED: " + kbd + " ***");
             updateNotif();
         }
     }
 
     private void updateNotif() {
-        // CRITICAL FIX: Only show notification when keyboard IS connected
         if (!kbd) {
             nm.cancel(1);
-            Log.d(TAG, "Notification cancelled (no keyboard)");
+            Log.d(TAG, "Notification CANCELLED (no keyboard)");
             return;
         }
         
         String txt = ig ? "IG active - Keys enabled" : "Waiting for IG";
         
-        Log.d(TAG, "Show notification: kbd=" + kbd + " ig=" + ig);
+        Log.d(TAG, "Creating notification: kbd=" + kbd + " ig=" + ig + " text=" + txt);
         
         Intent intent = new Intent(Intent.ACTION_MAIN);
         intent.addCategory(Intent.CATEGORY_LAUNCHER);
         intent.setPackage(IG);
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         
-        PendingIntent pi;
+        PendingIntent pendingIntent;
         if (Build.VERSION.SDK_INT >= 23) {
-            pi = PendingIntent.getActivity(this, 0, intent, 
+            pendingIntent = PendingIntent.getActivity(this, 0, intent, 
                 PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
         } else {
-            pi = PendingIntent.getActivity(this, 0, intent, 
+            pendingIntent = PendingIntent.getActivity(this, 0, intent, 
                 PendingIntent.FLAG_UPDATE_CURRENT);
         }
         
@@ -107,7 +113,7 @@ public class KeyboardTapService extends AccessibilityService
                 .setSmallIcon(android.R.drawable.ic_dialog_info)
                 .setContentTitle("Keyboard connected")
                 .setContentText(txt)
-                .setContentIntent(pi)
+                .setContentIntent(pendingIntent)
                 .setOngoing(true)
                 .build();
         } else {
@@ -115,27 +121,29 @@ public class KeyboardTapService extends AccessibilityService
                 .setSmallIcon(android.R.drawable.ic_dialog_info)
                 .setContentTitle("Keyboard connected")
                 .setContentText(txt)
-                .setContentIntent(pi)
+                .setContentIntent(pendingIntent)
                 .setOngoing(true)
                 .setPriority(Notification.PRIORITY_LOW)
                 .build();
         }
         
         nm.notify(1, n);
+        Log.d(TAG, "Notification SHOWN: " + txt);
     }
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent e) {
+        int eventType = e.getEventType();
         CharSequence pkg = e.getPackageName();
+        
+        Log.d(TAG, "Event: type=" + eventType + " pkg=" + pkg);
         
         if (pkg != null) {
             boolean nowIG = IG.equals(pkg.toString());
             
             if (nowIG != ig) {
                 ig = nowIG;
-                Log.d(TAG, "*** INSTAGRAM: " + ig + " ***");
-                
-                // CRITICAL FIX: Only update notification if keyboard connected
+                Log.d(TAG, "*** INSTAGRAM STATE CHANGED: " + ig + " ***");
                 if (kbd) {
                     updateNotif();
                 }
@@ -145,59 +153,42 @@ public class KeyboardTapService extends AccessibilityService
 
     @Override
     protected boolean onKeyEvent(KeyEvent e) {
-        // Filter out virtual keyboard
-        if (e.getDevice() != null && e.getDevice().isVirtual()) {
-            return false;
-        }
-        
-        // CRITICAL: Only intercept when BOTH keyboard AND Instagram active
-        if (!kbd || !ig) {
-            return false;
-        }
+        if (e.getDevice() != null && e.getDevice().isVirtual()) return false;
+        if (!kbd || !ig) return false;
         
         int key = e.getKeyCode();
         int action = e.getAction();
         
-        // Track Shift key
         if (key == KeyEvent.KEYCODE_SHIFT_LEFT || key == KeyEvent.KEYCODE_SHIFT_RIGHT) {
-            if (action == KeyEvent.ACTION_DOWN) {
-                shiftHeld = true;
-                Log.d(TAG, "Shift DOWN");
-            } else if (action == KeyEvent.ACTION_UP) {
-                shiftHeld = false;
-                Log.d(TAG, "Shift UP");
-            }
-            return false; // Don't consume shift
+            shiftHeld = (action == KeyEvent.ACTION_DOWN);
+            Log.d(TAG, "Shift " + (shiftHeld ? "DOWN" : "UP"));
+            return false;
         }
         
-        // ENTER -> Send message
         if (key == KeyEvent.KEYCODE_ENTER) {
             if (action == KeyEvent.ACTION_UP) {
-                Log.d(TAG, "ENTER -> tap (" + SEND_X + "," + SEND_Y + ")");
+                Log.d(TAG, "ENTER -> tap Send");
                 tapAt(SEND_X, SEND_Y, 50);
             }
-            return true; // Consume to prevent newline
+            return true;
         }
         
-        // UP arrow -> Previous reel
         if (key == KeyEvent.KEYCODE_DPAD_UP) {
             if (action == KeyEvent.ACTION_DOWN) {
-                Log.d(TAG, "UP -> swipe down (previous)");
+                Log.d(TAG, "UP -> swipe down");
                 swipe(CENTER_X, CENTER_Y, CENTER_X, CENTER_Y + SWIPE_DOWN, 300);
             }
             return true;
         }
         
-        // DOWN arrow -> Next reel
         if (key == KeyEvent.KEYCODE_DPAD_DOWN) {
             if (action == KeyEvent.ACTION_DOWN) {
-                Log.d(TAG, "DOWN -> swipe up (next)");
+                Log.d(TAG, "DOWN -> swipe up");
                 swipe(CENTER_X, CENTER_Y, CENTER_X, CENTER_Y + SWIPE_UP, 300);
             }
             return true;
         }
         
-        // SHIFT held -> Long press (fast forward)
         if (shiftHeld && action == KeyEvent.ACTION_DOWN) {
             Log.d(TAG, "Shift held -> long press");
             longPress(CENTER_X, CENTER_Y, 2000);
@@ -208,72 +199,45 @@ public class KeyboardTapService extends AccessibilityService
     }
 
     private void tapAt(int x, int y, int dur) {
-        if (Build.VERSION.SDK_INT < 24) {
-            Log.e(TAG, "Gesture API requires API 24+");
-            return;
-        }
-        
+        if (Build.VERSION.SDK_INT < 24) return;
         Path p = new Path();
         p.moveTo(x, y);
-        
-        GestureDescription gesture = new GestureDescription.Builder()
+        dispatchGesture(new GestureDescription.Builder()
             .addStroke(new GestureDescription.StrokeDescription(p, 0, dur))
-            .build();
-            
-        boolean sent = dispatchGesture(gesture, null, null);
-        Log.d(TAG, "Tap dispatched: " + sent);
+            .build(), null, null);
     }
 
     private void swipe(int x1, int y1, int x2, int y2, int dur) {
         if (Build.VERSION.SDK_INT < 24) return;
-        
         Path p = new Path();
         p.moveTo(x1, y1);
         p.lineTo(x2, y2);
-        
-        GestureDescription gesture = new GestureDescription.Builder()
+        dispatchGesture(new GestureDescription.Builder()
             .addStroke(new GestureDescription.StrokeDescription(p, 0, dur))
-            .build();
-            
-        boolean sent = dispatchGesture(gesture, null, null);
-        Log.d(TAG, "Swipe dispatched: " + sent);
+            .build(), null, null);
     }
 
     private void longPress(int x, int y, int dur) {
         if (Build.VERSION.SDK_INT < 24) return;
-        
         Path p = new Path();
         p.moveTo(x, y);
-        
-        GestureDescription gesture = new GestureDescription.Builder()
+        dispatchGesture(new GestureDescription.Builder()
             .addStroke(new GestureDescription.StrokeDescription(p, 0, dur))
-            .build();
-            
-        boolean sent = dispatchGesture(gesture, null, null);
-        Log.d(TAG, "Long press dispatched: " + sent);
+            .build(), null, null);
     }
 
-    @Override 
-    public void onInputDeviceAdded(int id) { 
-        Log.d(TAG, "Device added: " + id);
+    @Override public void onInputDeviceAdded(int id) { 
+        Log.d(TAG, "Device ADDED: " + id);
         checkKbd(); 
     }
     
-    @Override 
-    public void onInputDeviceRemoved(int id) { 
-        Log.d(TAG, "Device removed: " + id);
+    @Override public void onInputDeviceRemoved(int id) { 
+        Log.d(TAG, "Device REMOVED: " + id);
         checkKbd(); 
     }
     
-    @Override 
-    public void onInputDeviceChanged(int id) { 
-        checkKbd(); 
-    }
-    
-    @Override 
-    public void onInterrupt() {
-        Log.d(TAG, "Service interrupted");
-    }
+    @Override public void onInputDeviceChanged(int id) { checkKbd(); }
+    @Override public void onInterrupt() {}
     
     @Override
     public void onDestroy() {

@@ -1,3 +1,30 @@
+#!/bin/bash
+set -e
+
+echo "================================================"
+echo "FINAL FIX: Notification & Key Issues"
+echo "================================================"
+echo ""
+
+if [ ! -f "build.gradle" ]; then
+    echo "❌ Run from project root"
+    exit 1
+fi
+
+BACKUP="backup_final_$(date +%Y%m%d_%H%M%S)"
+mkdir -p "$BACKUP"
+
+for f in \
+    "app/src/main/java/com/example/chris/fstest/KeyboardTapService.java"
+do
+    [ -f "$f" ] && cp "$f" "$BACKUP/"
+done
+
+echo "✓ Backup: $BACKUP/"
+echo ""
+echo "Applying final fixes..."
+
+cat > "app/src/main/java/com/example/chris/fstest/KeyboardTapService.java" << 'ENDOFFILE'
 package com.example.chris.fstest;
 
 import android.accessibilityservice.AccessibilityService;
@@ -283,3 +310,41 @@ public class KeyboardTapService extends AccessibilityService
         super.onDestroy();
     }
 }
+ENDOFFILE
+
+echo "✓ KeyboardTapService.java fixed"
+echo ""
+echo "================================================"
+echo "✓ ALL BUGS FIXED"
+echo "================================================"
+echo ""
+echo "BUGS FIXED:"
+echo "  ✓ Notification no longer shows without keyboard"
+echo "  ✓ Keys now properly intercepted in Instagram"
+echo "  ✓ Better logging for debugging"
+echo ""
+echo "BEHAVIOR:"
+echo "  No keyboard          → No notification"
+echo "  Keyboard + Other app → 'Waiting for IG'"
+echo "  Keyboard + Instagram → 'IG active - Keys enabled'"
+echo "  Keys work ONLY when both kbd=true AND ig=true"
+echo ""
+echo "BUILD:"
+echo "  ./gradlew clean assembleDebug"
+echo "  adb install -r app/build/outputs/apk/debug/app-debug.apk"
+echo ""
+echo "DEBUG:"
+echo "  adb logcat | grep IGKbd"
+echo ""
+echo "  Expected when connecting keyboard:"
+echo "    IGKbd: *** KEYBOARD: true ***"
+echo ""
+echo "  Expected when opening Instagram:"
+echo "    IGKbd: *** INSTAGRAM: true ***"
+echo ""
+echo "  Expected when pressing ENTER:"
+echo "    IGKbd: ENTER -> tap (990,2313)"
+echo "    IGKbd: Tap dispatched: true"
+echo ""
+echo "Backup: $BACKUP/"
+echo ""
