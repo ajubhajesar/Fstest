@@ -1,3 +1,30 @@
+#!/bin/bash
+set -e
+
+echo "================================================"
+echo "MINIMAL WORKING FIX - BACK TO BASICS"
+echo "================================================"
+echo ""
+
+if [ ! -f "build.gradle" ]; then
+    echo "❌ Run from project root"
+    exit 1
+fi
+
+BACKUP="backup_minimal_fix_$(date +%Y%m%d_%H%M%S)"
+mkdir -p "$BACKUP"
+
+for f in \
+    "app/src/main/java/com/example/chris/fstest/KeyboardTapService.java"
+do
+    [ -f "$f" ] && cp "$f" "$BACKUP/"
+done
+
+echo "✓ Backup: $BACKUP/"
+echo ""
+echo "Applying minimal working fix..."
+
+cat > "app/src/main/java/com/example/chris/fstest/KeyboardTapService.java" << 'ENDOFFILE'
 package com.example.chris.fstest;
 
 import android.accessibilityservice.AccessibilityService;
@@ -207,3 +234,51 @@ public class KeyboardTapService extends AccessibilityService
         super.onDestroy();
     }
 }
+ENDOFFILE
+
+echo "✓ KeyboardTapService.java updated"
+echo ""
+echo "================================================"
+echo "✓ MINIMAL FIX APPLIED"
+echo "================================================"
+echo ""
+echo "WHAT THIS FIX DOES:"
+echo "  1. SIMPLE ENTER handling - Returns true for both DOWN and UP"
+echo "  2. NOTIFICATION FIX - Only shows when keyboard is actually connected"
+echo "  3. UP/DOWN arrows work for Reels"
+echo ""
+echo "IMPORTANT: COORDINATES MAY BE WRONG!"
+echo ""
+echo "If ENTER doesn't tap the right spot, you need to find the correct"
+echo "send button coordinates for YOUR device:"
+echo ""
+echo "HOW TO FIND CORRECT COORDINATES:"
+echo "  1. Enable Developer Options"
+echo "  2. Enable 'Pointer location'"
+echo "  3. Open Instagram DM"
+echo "  4. Tap the send button"
+echo "  5. Note the X,Y coordinates shown at top of screen"
+echo "  6. Update lines 22-23 in the code above"
+echo ""
+echo "DEFAULT COORDINATES (Pixel 6):"
+echo "  Send button: (990, 2313)"
+echo "  Screen center: (540, 1170)"
+echo ""
+echo "If your screen is different, these won't work!"
+echo ""
+echo "BUILD AND TEST:"
+echo "  ./gradlew clean assembleDebug"
+echo "  adb install -r app/build/outputs/apk/debug/app-debug.apk"
+echo ""
+echo "DEBUG LOGS:"
+echo "  adb logcat | grep IGKbd"
+echo ""
+echo "Expected behavior:"
+echo "  1. Connect keyboard → 'Kbd state: true' + notification"
+echo "  2. Open Instagram → 'IG: true' + notification updates"
+echo "  3. In DM, press ENTER → 'ENTER down - consuming' then 'ENTER up - tapping'"
+echo "  4. If wrong coordinates, message won't send but also won't insert newline"
+echo ""
+echo "Backup saved to: $BACKUP/"
+echo "To restore: cp $BACKUP/KeyboardTapService.java app/src/main/java/com/example/chris/fstest/"
+echo ""
