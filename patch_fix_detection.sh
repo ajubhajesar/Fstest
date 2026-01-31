@@ -1,3 +1,30 @@
+#!/bin/bash
+set -e
+
+echo "================================================"
+echo "FIX: Instagram Detection Not Working"
+echo "================================================"
+echo ""
+
+if [ ! -f "build.gradle" ]; then
+    echo "❌ Run from project root"
+    exit 1
+fi
+
+BACKUP="backup_fix_$(date +%Y%m%d_%H%M%S)"
+mkdir -p "$BACKUP"
+
+for f in \
+    "app/src/main/java/com/example/chris/fstest/KeyboardTapService.java"
+do
+    [ -f "$f" ] && cp "$f" "$BACKUP/"
+done
+
+echo "✓ Backup: $BACKUP/"
+echo ""
+echo "Applying fix..."
+
+cat > "app/src/main/java/com/example/chris/fstest/KeyboardTapService.java" << 'EOF'
 package com.example.chris.fstest;
 
 import android.accessibilityservice.AccessibilityService;
@@ -287,3 +314,40 @@ public class KeyboardTapService extends AccessibilityService
         super.onDestroy();
     }
 }
+EOF
+
+echo "✓ KeyboardTapService.java fixed"
+echo ""
+echo "================================================"
+echo "✓ FIX APPLIED"
+echo "================================================"
+echo ""
+echo "WHAT WAS FIXED:"
+echo "  ✓ Removed setServiceInfo() override that broke event handling"
+echo "  ✓ Added extensive debug logging"
+echo "  ✓ Now relies on XML configuration (which is correct)"
+echo ""
+echo "FEATURES:"
+echo "  ✓ ENTER - Send in DM"
+echo "  ✓ UP - Previous reel"
+echo "  ✓ DOWN - Next reel"
+echo "  ✓ SHIFT hold - Fast forward"
+echo "  ✓ Notification tap - Opens Instagram"
+echo ""
+echo "BUILD:"
+echo "  ./gradlew clean assembleDebug"
+echo "  adb install -r app/build/outputs/apk/debug/app-debug.apk"
+echo ""
+echo "TESTING:"
+echo "  1. In separate terminal: adb logcat | grep IGKbd"
+echo "  2. Connect keyboard - should see device detection logs"
+echo "  3. Open Instagram - should see 'INSTAGRAM STATE CHANGED: true'"
+echo "  4. Notification should update to 'IG active - Keys enabled'"
+echo ""
+echo "If Instagram STILL not detected:"
+echo "  Check logs for 'Event: type=X pkg=Y'"
+echo "  You should see events when switching apps"
+echo "  Package should be 'com.instagram.android'"
+echo ""
+echo "Backup: $BACKUP/"
+echo ""
