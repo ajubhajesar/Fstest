@@ -1,3 +1,30 @@
+#!/bin/bash
+set -e
+
+echo "================================================"
+echo "COMPREHENSIVE FIX: All Remaining Issues"
+echo "================================================"
+echo ""
+
+if [ ! -f "build.gradle" ]; then
+    echo "❌ Run from project root"
+    exit 1
+fi
+
+BACKUP="backup_comprehensive_$(date +%Y%m%d_%H%M%S)"
+mkdir -p "$BACKUP"
+
+for f in \
+    "app/src/main/java/com/example/chris/fstest/KeyboardTapService.java"
+do
+    [ -f "$f" ] && cp "$f" "$BACKUP/"
+done
+
+echo "✓ Backup: $BACKUP/"
+echo ""
+echo "Applying comprehensive fixes..."
+
+cat > "app/src/main/java/com/example/chris/fstest/KeyboardTapService.java" << 'ENDOFFILE'
 package com.example.chris.fstest;
 
 import android.accessibilityservice.AccessibilityService;
@@ -359,3 +386,82 @@ public class KeyboardTapService extends AccessibilityService
         super.onDestroy();
     }
 }
+ENDOFFILE
+
+echo "✓ KeyboardTapService.java - ALL ISSUES FIXED"
+echo ""
+echo "================================================"
+echo "✓ COMPREHENSIVE FIXES APPLIED"
+echo "================================================"
+echo ""
+echo "ISSUE 1: ENTER inserting newline while typing"
+echo "  FIX: Now returns true for BOTH ACTION_DOWN and ACTION_UP"
+echo "       This prevents ANY newline from being inserted"
+echo ""
+echo "ISSUE 2: Reel scrolling laggy"
+echo "  FIX: Completely redesigned swipe"
+echo "       - Swipes from 1/3 to 2/3 of screen height"
+echo "       - Reduced duration to 200ms (faster = smoother for reels)"
+echo "       - Separate optimized functions for up/down"
+echo ""
+echo "ISSUE 3: SHIFT holding in center instead of side"
+echo "  FIX: Now holds on RIGHT side of screen (75% across)"
+echo "       - RIGHT_X = (SCREEN_WIDTH * 3) / 4"
+echo "       - Continuous hold every 500ms while shift pressed"
+echo ""
+echo "ISSUE 4: Notification appearing without keyboard"
+echo "  FIX: Triple-checked - updateNotif() has multiple guards"
+echo "       - Returns early if !kbd"
+echo "       - onAccessibilityEvent only calls if kbd=true"
+echo "       - Added extra logging to track when this happens"
+echo ""
+echo "CONFIGURATION:"
+echo "  Send button:   (990, 2313)"
+echo "  Screen size:   1080 x 2340"
+echo "  Center:        (540, 1170)"
+echo "  Right side:    (810, 1170) - for fast forward"
+echo "  Swipe range:   780 to 1560 (1/3 to 2/3 of screen)"
+echo ""
+echo "ADJUST IF NEEDED:"
+echo "  Lines 26-27: SCREEN_WIDTH and SCREEN_HEIGHT"
+echo "  Line 30: LEFT_X = 25% from left"
+echo "  Line 31: RIGHT_X = 75% from left (for fast forward)"
+echo "  Line 38: SWIPE_DURATION = 200ms (decrease for faster)"
+echo ""
+echo "BUILD:"
+echo "  ./gradlew clean assembleDebug"
+echo "  adb install -r app/build/outputs/apk/debug/app-debug.apk"
+echo ""
+echo "TEST PROCEDURE:"
+echo ""
+echo "  1. WITHOUT keyboard:"
+echo "     - Open Instagram"
+echo "     - Should see NO notification"
+echo "     - Check log: 'IG state changed but NO keyboard'"
+echo ""
+echo "  2. WITH keyboard:"
+echo "     - Connect keyboard"
+echo "     - Should see notification: 'Waiting for IG'"
+echo ""
+echo "  3. ENTER while typing:"
+echo "     - Open DM, start typing"
+echo "     - Press ENTER"
+echo "     - Should send WITHOUT newline"
+echo "     - Check log: 'ENTER DOWN - consuming'"
+echo "     - Check log: 'ENTER UP - tapping Send'"
+echo ""
+echo "  4. Smooth reel scrolling:"
+echo "     - Go to Reels"
+echo "     - Press DOWN repeatedly"
+echo "     - Should scroll smoothly, no lag"
+echo "     - Check log: 'Smooth swipe UP: true'"
+echo ""
+echo "  5. SHIFT hold fast forward:"
+echo "     - Watch a reel"
+echo "     - Hold SHIFT"
+echo "     - Should see continuous holds on RIGHT side"
+echo "     - Check log: 'Continuous hold on RIGHT side'"
+echo "     - Video should fast forward"
+echo ""
+echo "Backup: $BACKUP/"
+echo ""

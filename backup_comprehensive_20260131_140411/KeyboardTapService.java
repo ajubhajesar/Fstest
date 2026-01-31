@@ -10,7 +10,6 @@ import android.content.Intent;
 import android.graphics.Path;
 import android.hardware.input.InputManager;
 import android.os.Build;
-import android.os.Handler;
 import android.util.Log;
 import android.view.InputDevice;
 import android.view.KeyEvent;
@@ -22,32 +21,21 @@ public class KeyboardTapService extends AccessibilityService
     private static final String TAG = "IGKbd";
     private static final String IG = "com.instagram.android";
     
-    // Send button coordinates
     private static final int SEND_X = 990;
     private static final int SEND_Y = 2313;
+    private static final int CENTER_X = 540;
+    private static final int CENTER_Y = 1170;
     
-    // Screen dimensions (adjust for your device)
-    private static final int SCREEN_WIDTH = 1080;
-    private static final int SCREEN_HEIGHT = 2340;
-    
-    // Center and sides for gestures
-    private static final int CENTER_X = SCREEN_WIDTH / 2;
-    private static final int CENTER_Y = SCREEN_HEIGHT / 2;
-    private static final int LEFT_X = SCREEN_WIDTH / 4;   // 25% from left
-    private static final int RIGHT_X = (SCREEN_WIDTH * 3) / 4; // 75% from left
-    
-    // Smooth swipe parameters - MUCH smoother now
-    private static final int SWIPE_START_Y = (SCREEN_HEIGHT * 2) / 3; // Start lower
-    private static final int SWIPE_END_Y = SCREEN_HEIGHT / 3;         // End higher
-    private static final int SWIPE_DURATION = 200;  // Faster = smoother for reels
+    // Smooth swipe parameters
+    private static final int SWIPE_DISTANCE = 1000;  // Increased for smoother swipes
+    private static final int SWIPE_DURATION = 400;   // Longer duration = smoother
 
     private InputManager im;
     private NotificationManager nm;
     private boolean kbd = false;
     private boolean ig = false;
     private boolean shiftHeld = false;
-    private Handler handler = new Handler();
-    private Runnable shiftHoldTask;
+    private long lastShiftTime = 0;
 
     @Override
     public void onServiceConnected() {
@@ -91,21 +79,13 @@ public class KeyboardTapService extends AccessibilityService
     }
 
     private void updateNotif() {
-        // CRITICAL: Only show notification when keyboard IS connected
         if (!kbd) {
             nm.cancel(1);
-            Log.d(TAG, "Notification CANCELLED - no keyboard");
-            return;
-        }
-        
-        // CRITICAL: Don't create notification if ig changed but kbd is false
-        if (!kbd) {
+            Log.d(TAG, "Notification cancelled");
             return;
         }
         
         String txt = ig ? "IG active - Keys enabled" : "Waiting for IG";
-        
-        Log.d(TAG, "Showing notification: kbd=" + kbd + " ig=" + ig);
         
         Intent intent = new Intent(Intent.ACTION_MAIN);
         intent.addCategory(Intent.CATEGORY_LAUNCHER);
@@ -153,13 +133,10 @@ public class KeyboardTapService extends AccessibilityService
             
             if (nowIG != ig) {
                 ig = nowIG;
-                Log.d(TAG, "*** INSTAGRAM: " + ig + " (kbd=" + kbd + ") ***");
+                Log.d(TAG, "*** INSTAGRAM: " + ig + " ***");
                 
-                // CRITICAL FIX: Only update notification if keyboard is ACTUALLY connected
                 if (kbd) {
                     updateNotif();
-                } else {
-                    Log.d(TAG, "IG state changed but NO keyboard - not showing notification");
                 }
             }
         }
@@ -167,7 +144,10 @@ public class KeyboardTapService extends AccessibilityService
 
     @Override
     protected boolean onKeyEvent(KeyEvent e) {
-        // CRITICAL: Only intercept when BOTH keyboard connected AND Instagram active
+        // CRITICAL FIX: Don't check isVirtual() - just check if we have physical kbd
+        // The virtual keyboard being shown doesn't mean the key is from virtual keyboard
+        
+        // Only intercept when BOTH keyboard AND Instagram active
         if (!kbd || !ig) {
             return false;
         }
@@ -175,126 +155,56 @@ public class KeyboardTapService extends AccessibilityService
         int key = e.getKeyCode();
         int action = e.getAction();
         
-        Log.d(TAG, "Key: " + key + " action: " + action);
+        Log.d(TAG, "Key event: code=" + key + " action=" + action + " device=" + 
+              (e.getDevice() != null ? e.getDevice().getName() : "null"));
         
-        // Track Shift key with CONTINUOUS hold
+        // Track Shift key
         if (key == KeyEvent.KEYCODE_SHIFT_LEFT || key == KeyEvent.KEYCODE_SHIFT_RIGHT) {
-            if (action == KeyEvent.ACTION_DOWN && !shiftHeld) {
+            if (action == KeyEvent.ACTION_DOWN) {
                 shiftHeld = true;
-                Log.d(TAG, "Shift DOWN - starting continuous hold");
-                startContinuousHold();
+                lastShiftTime = System.currentTimeMillis();
+                Log.d(TAG, "Shift DOWN - starting hold timer");
+                
+                // Trigger long press immediately when shift is pressed
+                longPress(CENTER_X, CENTER_Y, 2000);
             } else if (action == KeyEvent.ACTION_UP) {
                 shiftHeld = false;
-                Log.d(TAG, "Shift UP - stopping hold");
-                stopContinuousHold();
+                Log.d(TAG, "Shift UP - held for " + 
+                      (System.currentTimeMillis() - lastShiftTime) + "ms");
             }
-            return false; // Don't consume shift
+            return false; // Don't consume shift - let it work normally too
         }
         
-        // ENTER -> Send message (CONSUME BOTH DOWN AND UP)
+        // ENTER -> Send message
         if (key == KeyEvent.KEYCODE_ENTER) {
-            Log.d(TAG, "ENTER key detected - action: " + action);
-            
-            if (action == KeyEvent.ACTION_DOWN) {
-                Log.d(TAG, "ENTER DOWN - consuming");
-            } else if (action == KeyEvent.ACTION_UP) {
-                Log.d(TAG, "ENTER UP - tapping Send button");
+            if (action == KeyEvent.ACTION_UP) {
+                Log.d(TAG, "ENTER -> tap Send at (" + SEND_X + "," + SEND_Y + ")");
                 tapAt(SEND_X, SEND_Y, 50);
             }
-            
-            // CRITICAL: Return true for BOTH down and up to prevent newline
-            return true;
+            return true; // Consume to prevent newline
         }
         
-        // UP arrow -> Previous reel (swipe DOWN smoothly)
+        // UP arrow -> Previous reel (swipe DOWN on screen)
         if (key == KeyEvent.KEYCODE_DPAD_UP) {
             if (action == KeyEvent.ACTION_DOWN) {
-                Log.d(TAG, "UP arrow -> smooth swipe DOWN");
-                smoothSwipeDown();
+                Log.d(TAG, "UP arrow -> swipe DOWN (previous reel)");
+                // Start from center, swipe DOWN to show previous reel
+                swipe(CENTER_X, CENTER_Y, CENTER_X, CENTER_Y + SWIPE_DISTANCE, SWIPE_DURATION);
             }
             return true;
         }
         
-        // DOWN arrow -> Next reel (swipe UP smoothly)
+        // DOWN arrow -> Next reel (swipe UP on screen)
         if (key == KeyEvent.KEYCODE_DPAD_DOWN) {
             if (action == KeyEvent.ACTION_DOWN) {
-                Log.d(TAG, "DOWN arrow -> smooth swipe UP");
-                smoothSwipeUp();
+                Log.d(TAG, "DOWN arrow -> swipe UP (next reel)");
+                // Start from center, swipe UP to show next reel
+                swipe(CENTER_X, CENTER_Y, CENTER_X, CENTER_Y - SWIPE_DISTANCE, SWIPE_DURATION);
             }
             return true;
         }
         
         return false;
-    }
-
-    // Continuous hold on RIGHT side of screen for fast forward
-    private void startContinuousHold() {
-        if (shiftHoldTask != null) {
-            handler.removeCallbacks(shiftHoldTask);
-        }
-        
-        shiftHoldTask = new Runnable() {
-            public void run() {
-                if (shiftHeld) {
-                    Log.d(TAG, "Continuous hold on RIGHT side");
-                    // Hold on RIGHT side to fast forward
-                    longPress(RIGHT_X, CENTER_Y, 500);
-                    
-                    // Schedule next hold
-                    handler.postDelayed(this, 500);
-                }
-            }
-        };
-        
-        // Start immediately
-        handler.post(shiftHoldTask);
-    }
-
-    private void stopContinuousHold() {
-        if (shiftHoldTask != null) {
-            handler.removeCallbacks(shiftHoldTask);
-            shiftHoldTask = null;
-        }
-    }
-
-    // Optimized smooth swipe DOWN (for previous reel)
-    private void smoothSwipeDown() {
-        if (Build.VERSION.SDK_INT < 24) return;
-        
-        // Swipe from middle-high to middle-low (shows previous reel)
-        int startY = SCREEN_HEIGHT / 3;
-        int endY = (SCREEN_HEIGHT * 2) / 3;
-        
-        Path p = new Path();
-        p.moveTo(CENTER_X, startY);
-        p.lineTo(CENTER_X, endY);
-        
-        GestureDescription gesture = new GestureDescription.Builder()
-            .addStroke(new GestureDescription.StrokeDescription(p, 0, SWIPE_DURATION))
-            .build();
-            
-        boolean sent = dispatchGesture(gesture, null, null);
-        Log.d(TAG, "Smooth swipe DOWN: " + sent);
-    }
-
-    // Optimized smooth swipe UP (for next reel)
-    private void smoothSwipeUp() {
-        if (Build.VERSION.SDK_INT < 24) return;
-        
-        // Swipe from middle-low to middle-high (shows next reel)
-        int startY = (SCREEN_HEIGHT * 2) / 3;
-        int endY = SCREEN_HEIGHT / 3;
-        
-        Path p = new Path();
-        p.moveTo(CENTER_X, startY);
-        p.lineTo(CENTER_X, endY);
-        
-        GestureDescription gesture = new GestureDescription.Builder()
-            .addStroke(new GestureDescription.StrokeDescription(p, 0, SWIPE_DURATION))
-            .build();
-            
-        boolean sent = dispatchGesture(gesture, null, null);
-        Log.d(TAG, "Smooth swipe UP: " + sent);
     }
 
     private void tapAt(int x, int y, int dur) {
@@ -311,7 +221,23 @@ public class KeyboardTapService extends AccessibilityService
             .build();
             
         boolean sent = dispatchGesture(gesture, null, null);
-        Log.d(TAG, "Tap at (" + x + "," + y + ") result: " + sent);
+        Log.d(TAG, "Tap result: " + sent);
+    }
+
+    private void swipe(int x1, int y1, int x2, int y2, int dur) {
+        if (Build.VERSION.SDK_INT < 24) return;
+        
+        Path p = new Path();
+        p.moveTo(x1, y1);
+        p.lineTo(x2, y2);
+        
+        GestureDescription gesture = new GestureDescription.Builder()
+            .addStroke(new GestureDescription.StrokeDescription(p, 0, dur))
+            .build();
+            
+        boolean sent = dispatchGesture(gesture, null, null);
+        Log.d(TAG, "Swipe from (" + x1 + "," + y1 + ") to (" + x2 + "," + y2 + 
+              ") dur=" + dur + "ms result: " + sent);
     }
 
     private void longPress(int x, int y, int dur) {
@@ -325,7 +251,7 @@ public class KeyboardTapService extends AccessibilityService
             .build();
             
         boolean sent = dispatchGesture(gesture, null, null);
-        Log.d(TAG, "Hold at (" + x + "," + y + ") for " + dur + "ms: " + sent);
+        Log.d(TAG, "Long press at (" + x + "," + y + ") dur=" + dur + "ms result: " + sent);
     }
 
     @Override 
@@ -353,7 +279,6 @@ public class KeyboardTapService extends AccessibilityService
     @Override
     public void onDestroy() {
         Log.d(TAG, "=== SERVICE DESTROYED ===");
-        stopContinuousHold();
         if (im != null) im.unregisterInputDeviceListener(this);
         nm.cancel(1);
         super.onDestroy();
