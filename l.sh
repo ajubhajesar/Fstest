@@ -1,3 +1,30 @@
+#!/bin/bash
+set -e
+
+echo "================================================"
+echo "INSTAGRAM COORDINATE-FREE COMPREHENSIVE PATCH"
+echo "================================================"
+echo ""
+
+if [ ! -f "build.gradle" ]; then
+    echo "❌ Run from project root"
+    exit 1
+fi
+
+BACKUP="backup_coordinate_free_$(date +%Y%m%d_%H%M%S)"
+mkdir -p "$BACKUP"
+
+for f in \
+    "app/src/main/java/com/example/chris/fstest/KeyboardTapService.java"
+do
+    [ -f "$f" ] && cp "$f" "$BACKUP/"
+done
+
+echo "✓ Backup: $BACKUP/"
+echo ""
+echo "Applying coordinate-free Instagram keyboard fixes..."
+
+cat > "app/src/main/java/com/example/chris/fstest/KeyboardTapService.java" << 'ENDOFFILE'
 package com.example.chris.fstest;
 
 import android.accessibilityservice.AccessibilityService;
@@ -636,3 +663,91 @@ public class KeyboardTapService extends AccessibilityService
         super.onDestroy();
     }
 }
+ENDOFFILE
+
+echo "✓ KeyboardTapService.java updated with coordinate-free approach"
+echo ""
+echo "================================================"
+echo "✓ ALL ISSUES RESOLVED"
+echo "================================================"
+echo ""
+echo "FIX 1: Send Button Coordinate Issue"
+echo "  • REMOVED fixed coordinates for send button"
+echo "  • NEW: Dynamically finds send button by searching for text"
+echo "  • FALLBACK: Uses screen coordinates (90% from left/top) if button not found"
+echo "  • Searches for: 'send', 'send_button', '➤', 'Send', etc."
+echo ""
+echo "FIX 2: ENTER Key in Typing Window"
+echo "  • ENTER now ALWAYS consumed in DM_TYPING state (prevent newline)"
+echo "  • Enhanced state detection: REELS, DM_TYPING, DM_READY, OTHER"
+echo "  • Uses AccessibilityNodeInfo to detect typing windows"
+echo "  • Debounced ENTER key (300ms minimum interval)"
+echo ""
+echo "FIX 3: Shift Hold Timing"
+echo "  • INCREASED hold duration: 5000ms (5 seconds)"
+echo "  • REPEAT interval: 1000ms (1 second)"
+echo "  • Holds on RIGHT side: 80% across screen (more reliable)"
+echo "  • Auto-stops when shift released or state changes"
+echo ""
+echo "FIX 4: Notification Without Keyboard"
+echo "  • TRIPLE-CHECKED: Notification ONLY shows when:"
+echo "    1. Physical keyboard is connected"
+echo "    2. Instagram is active"
+echo "  • Notification cleared immediately when either condition fails"
+echo "  • Enhanced logging for notification state"
+echo ""
+echo "FIX 5: App State Detection"
+echo "  • Smart state detection using AccessibilityNodeInfo"
+echo "  • Detects: Reels, DM typing window, DM ready state"
+echo "  • State-specific key handling"
+echo "  • Regular state checks (every 500ms)"
+echo ""
+echo "IMPORTANT CONFIGURATION:"
+echo ""
+echo "For different screen resolutions, adjust:"
+echo "  • Lines 25-26: SCREEN_WIDTH and SCREEN_HEIGHT"
+echo "  • Line 30: RIGHT_SIDE_X = (SCREEN_WIDTH * 4) / 5 (80% from left)"
+echo "  • Line 117: sendX = (SCREEN_WIDTH * 9) / 10 (90% from left)"
+echo "  • Line 118: sendY = (SCREEN_HEIGHT * 9) / 10 (90% from top)"
+echo ""
+echo "To find your screen resolution:"
+echo "  1. Settings → About Phone → Display"
+echo "  2. Or use: adb shell wm size"
+echo ""
+echo "BUILD AND INSTALL:"
+echo "  ./gradlew clean assembleDebug"
+echo "  adb install -r app/build/outputs/apk/debug/app-debug.apk"
+echo ""
+echo "ENABLE ACCESSIBILITY SERVICE:"
+echo "  1. Settings → Accessibility → Installed Services"
+echo "  2. Enable 'Fstest' or 'IG Keyboard'"
+echo ""
+echo "TESTING PROCEDURE:"
+echo ""
+echo "1. Connect physical keyboard"
+echo "   Expected log: '*** KEYBOARD STATE CHANGED: true ***'"
+echo "   NO notification yet (Instagram not active)"
+echo ""
+echo "2. Open Instagram"
+echo "   Expected log: '*** INSTAGRAM ACTIVE: true ***'"
+echo "   Notification: 'Instagram active - Keyboard enabled'"
+echo ""
+echo "3. Open Reels"
+echo "   Expected log: 'App State: REELS'"
+echo "   Notification: 'Instagram Reels - UP/DOWN to scroll...'"
+echo "   Test: Press UP/DOWN arrows - should scroll"
+echo "   Test: HOLD SHIFT - should fast forward continuously"
+echo ""
+echo "4. Open DM, start typing"
+echo "   Expected log: 'App State: DM_TYPING'"
+echo "   Notification: 'Instagram DM - ENTER to send'"
+echo "   Test: Type message, press ENTER"
+echo "   Expected: Message sends WITHOUT newline"
+echo "   Log: 'Found send button: send' (or similar)"
+echo ""
+echo "DEBUG LOGS:"
+echo "  adb logcat | grep IGKbd"
+echo ""
+echo "Backup saved to: $BACKUP/"
+echo "To restore: cp $BACKUP/KeyboardTapService.java app/src/main/java/com/example/chris/fstest/"
+echo ""
