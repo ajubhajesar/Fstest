@@ -1,3 +1,30 @@
+#!/bin/bash
+set -e
+
+echo "================================================"
+echo "SIMPLIFIED WORKING FIX - BASED ON WORKING CODE"
+echo "================================================"
+echo ""
+
+if [ ! -f "build.gradle" ]; then
+    echo "❌ Run from project root"
+    exit 1
+fi
+
+BACKUP="backup_working_fix_$(date +%Y%m%d_%H%M%S)"
+mkdir -p "$BACKUP"
+
+for f in \
+    "app/src/main/java/com/example/chris/fstest/KeyboardTapService.java"
+do
+    [ -f "$f" ] && cp "$f" "$BACKUP/"
+done
+
+echo "✓ Backup: $BACKUP/"
+echo ""
+echo "Applying working fix based on original code..."
+
+cat > "app/src/main/java/com/example/chris/fstest/KeyboardTapService.java" << 'ENDOFFILE'
 package com.example.chris.fstest;
 
 import android.accessibilityservice.AccessibilityService;
@@ -173,3 +200,81 @@ public class KeyboardTapService extends AccessibilityService
         super.onDestroy();
     }
 }
+ENDOFFILE
+
+echo "✓ KeyboardTapService.java updated"
+echo ""
+echo "================================================"
+echo "✓ FIXES APPLIED"
+echo "================================================"
+echo ""
+echo "FIX 1: ENTER Key Consumption"
+echo "  • Now returns true for BOTH ACTION_DOWN and ACTION_UP"
+echo "  • ACTION_DOWN: Logs and consumes to prevent newline"
+echo "  • ACTION_UP: Logs and performs tap at coordinates"
+echo "  • This should completely prevent newline insertion"
+echo ""
+echo "FIX 2: Notification Issue"
+echo "  • CRITICAL: updateNotification() checks if (!kbd) first and returns early"
+echo "  • CRITICAL: onAccessibilityEvent() only calls updateNotification() if kbd is true"
+echo "  • Triple-checked: Notification ONLY shows when physical keyboard is connected"
+echo ""
+echo "FIX 3: Removed Virtual Keyboard Check"
+echo "  • Removed: if (e.getDevice() != null && e.getDevice().isVirtual()) return false;"
+echo "  • Reason: When typing in Instagram, virtual keyboard is shown but ENTER"
+echo "    should still be intercepted if physical keyboard is connected"
+echo ""
+echo "KEY FEATURES:"
+echo "  • Simple: Based on your original working code"
+echo "  • Only handles ENTER key (removed all other key logic)"
+echo "  • Tap at fixed coordinates (990, 2313)"
+echo "  • Proper logging for debugging"
+echo ""
+echo "COORDINATES:"
+echo "  • Fixed: (990, 2313) - from your working code"
+echo "  • These are for Pixel 6 (1080x2340 screen)"
+echo ""
+echo "ADJUST COORDINATES IF NEEDED:"
+echo "  To find correct send button coordinates:"
+echo "  1. Enable Developer Options"
+echo "  2. Enable 'Pointer location'"
+echo "  3. Open Instagram DM"
+echo "  4. Tap the send button"
+echo "  5. Note X,Y coordinates from top-left corner"
+echo "  6. Update lines 22-23 in the code"
+echo ""
+echo "BUILD AND TEST:"
+echo "  ./gradlew clean assembleDebug"
+echo "  adb install -r app/build/outputs/apk/debug/app-debug.apk"
+echo ""
+echo "TEST PROCEDURE:"
+echo ""
+echo "1. WITHOUT keyboard:"
+echo "   - Open Instagram"
+echo "   - Should see NO notification"
+echo "   - Log: 'Instagram state changed but no keyboard - skipping notification'"
+echo ""
+echo "2. WITH keyboard:"
+echo "   - Connect keyboard"
+echo "   - Should see notification: 'Waiting for IG'"
+echo "   - Log: 'Kbd state: true'"
+echo ""
+echo "3. Open Instagram DM:"
+echo "   - Type message"
+echo "   - Press ENTER"
+echo "   - Should send WITHOUT newline"
+echo "   - Log: 'ENTER DOWN - consuming to prevent newline'"
+echo "          'ENTER UP - tapping at (990,2313)'"
+echo "          'Tap dispatched: true'"
+echo ""
+echo "DEBUG LOGS:"
+echo "  adb logcat | grep IGKbd"
+echo ""
+echo "If ENTER still inserts newline:"
+echo "  1. Check logs to ensure 'ENTER DOWN - consuming' appears"
+echo "  2. Check if 'kbd' and 'ig' are both true"
+echo "  3. Make sure accessibility service is enabled"
+echo ""
+echo "Backup saved to: $BACKUP/"
+echo "To restore: cp $BACKUP/KeyboardTapService.java app/src/main/java/com/example/chris/fstest/"
+echo ""
