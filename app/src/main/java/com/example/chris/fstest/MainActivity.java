@@ -2,26 +2,88 @@ package com.example.chris.fstest;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.view.View;
 import android.webkit.WebView;
 import android.widget.Button;
+import android.widget.CheckBox;
+import android.widget.CompoundButton;
 import android.widget.LinearLayout;
 import android.view.ViewGroup;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.Locale;
 
 public class MainActivity extends Activity {
+    
+    private WebView webView;
+    private SharedPreferences prefs;
+    private static final String PREFS_NAME = "TankSchedulePrefs";
+    private static final String KEY_TANK_FILL = "tank_fill_today";
+    private static final String KEY_SWAP_MS = "mf_society_swap";
+    
+    // Schedule constants (matches minimal.py logic)
+    private static final String AREA_YADAV = "યાદવ નગરી + ચૌધરી ફરીયો";
+    private static final String AREA_MAFAT = "મફત નગરી";
+    private static final String AREA_SOCIETY = "સોસાયટી";
+    private static final String AREA_REMAINING = "બાકીનો વિસ્તાર";
+    private static final Calendar SEED_DATE;
+    
+    static {
+        SEED_DATE = Calendar.getInstance();
+        SEED_DATE.set(2025, Calendar.AUGUST, 29, 0, 0, 0);
+        SEED_DATE.set(Calendar.MILLISECOND, 0);
+    }
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
         
+        // Root layout
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
-        layout.setPadding(0, 0, 0, 0);
+        layout.setPadding(16, 16, 16, 16);
         
-        // WebView for tank schedule
-        WebView webView = new WebView(this);
+        // Settings Panel (Checkboxes)
+        LinearLayout settingsPanel = new LinearLayout(this);
+        settingsPanel.setOrientation(LinearLayout.VERTICAL);
+        settingsPanel.setBackgroundColor(0xFFF0F0F0);
+        settingsPanel.setPadding(16, 16, 16, 16);
+        
+        // Tank Fill Checkbox
+        CheckBox cbTankFill = new CheckBox(this);
+        cbTankFill.setText("ટાંકો ભરાઈ રહ્યો છે (Tank filling today)");
+        cbTankFill.setChecked(prefs.getBoolean(KEY_TANK_FILL, false));
+        cbTankFill.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                prefs.edit().putBoolean(KEY_TANK_FILL, isChecked).apply();
+                refreshSchedule();
+            }
+        });
+        
+        // Swap Checkbox (MF_SOCIETY_FORCE_SWAP logic)
+        CheckBox cbSwap = new CheckBox(this);
+        cbSwap.setText("મફત/સોસાયટી અદલાબદલી (Swap Mafat/Society order)");
+        cbSwap.setChecked(prefs.getBoolean(KEY_SWAP_MS, false));
+        cbSwap.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                prefs.edit().putBoolean(KEY_SWAP_MS, isChecked).apply();
+                refreshSchedule();
+            }
+        });
+        
+        settingsPanel.addView(cbTankFill);
+        settingsPanel.addView(cbSwap);
+        layout.addView(settingsPanel);
+        
+        // WebView for schedule display
+        webView = new WebView(this);
         webView.getSettings().setJavaScriptEnabled(false);
         webView.getSettings().setSupportZoom(false);
         
@@ -31,9 +93,9 @@ public class MainActivity extends Activity {
             1.0f
         );
         webView.setLayoutParams(webParams);
-        webView.loadData(getScheduleHTML(), "text/html; charset=UTF-8", null);
+        layout.addView(webView);
         
-        // Button for accessibility settings
+        // Enable Keyboard Service Button
         Button btn = new Button(this);
         btn.setText("⚙️ Enable Keyboard Service");
         btn.setTextSize(16);
@@ -42,7 +104,7 @@ public class MainActivity extends Activity {
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.WRAP_CONTENT
         );
-        btnParams.setMargins(16, 0, 16, 16);
+        btnParams.setMargins(16, 16, 16, 16);
         btn.setLayoutParams(btnParams);
         
         // Java 7 compatible onClick - NO lambda
@@ -54,14 +116,73 @@ public class MainActivity extends Activity {
             }
         });
         
-        layout.addView(webView);
         layout.addView(btn);
-        
         setContentView(layout);
+        
+        // Initial load
+        refreshSchedule();
+    }
+    
+    private void refreshSchedule() {
+        webView.loadData(getScheduleHTML(), "text/html; charset=UTF-8", null);
     }
     
     private String getScheduleHTML() {
-        // Tank schedule - embedded (no server needed)
+        boolean tankFill = prefs.getBoolean(KEY_TANK_FILL, false);
+        boolean swap = prefs.getBoolean(KEY_SWAP_MS, false);
+        
+        // Calculate days since seed (for alternation)
+        Calendar today = Calendar.getInstance();
+        long diffMillis = today.getTimeInMillis() - SEED_DATE.getTimeInMillis();
+        int days = (int) (diffMillis / (1000 * 60 * 60 * 24));
+        
+        // Source alternates daily (Borewell on even days, Narmada on odd)
+        String source = (days % 2 == 0) ? "બોરવેલ (Borewell)" : "નર્મદા (Narmada)";
+        
+        // Day of month determines first half or second half schedule
+        int dayOfMonth = today.get(Calendar.DAY_OF_MONTH);
+        boolean firstHalf = dayOfMonth <= 15;
+        
+        // Partner alternation (from tankschedule.py)
+        String first = (days % 2 == 0) ? "society" : "mafat";
+        
+        // Apply swap if enabled (matches MF_SOCIETY_FORCE_SWAP)
+        if (swap) {
+            first = first.equals("society") ? "mafat" : "society";
+        }
+        String second = first.equals("society") ? "mafat" : "society";
+        
+        String firstLabel = first.equals("society") ? AREA_SOCIETY : AREA_MAFAT;
+        String secondLabel = second.equals("society") ? AREA_SOCIETY : AREA_MAFAT;
+        
+        // Build slots HTML
+        StringBuilder slotsHtml = new StringBuilder();
+        
+        if (firstHalf) {
+            if (tankFill) {
+                // Tank filling mode (09:00-11:00 blocked)
+                addSlot(slotsHtml, "06:00–09:00", AREA_REMAINING);
+                addSlot(slotsHtml, "09:00–11:00", "ટાંકો ભરાઈ રહ્યો છે");
+                addSlot(slotsHtml, "11:00–12:30", AREA_YADAV + " + " + firstLabel);
+                addSlot(slotsHtml, "12:30–14:00", secondLabel);
+            } else {
+                // Normal first-half schedule
+                addSlot(slotsHtml, "06:00–09:00", AREA_REMAINING);
+                addSlot(slotsHtml, "09:00–10:30", firstLabel);
+                addSlot(slotsHtml, "10:30–12:00", secondLabel);
+                addSlot(slotsHtml, "12:00–13:30", AREA_YADAV);
+            }
+        } else {
+            // Second half schedule (days 16-31)
+            addSlot(slotsHtml, "06:00–07:30", AREA_YADAV + " + " + firstLabel);
+            addSlot(slotsHtml, "07:30–09:00", secondLabel);
+            addSlot(slotsHtml, "09:00–12:00", AREA_REMAINING);
+        }
+        
+        // Current date string
+        String dateStr = new SimpleDateFormat("EEEE, dd MMMM yyyy", Locale.ENGLISH).format(new Date());
+        
+        // Full HTML
         return "<!DOCTYPE html>" +
             "<html lang='gu'>" +
             "<head>" +
@@ -87,28 +208,10 @@ public class MainActivity extends Activity {
             "<body>" +
             "<div class='card'>" +
             "<h1>💧 પત્રી પાણી વહેંચણી સમયપત્રક</h1>" +
-            "<div class='badge'>📅 આજે | બોરવેલ (Borewell)</div>" +
-            "<div class='date'>" + getCurrentDate() + "</div>" +
+            "<div class='badge'>📅 " + source + "</div>" +
+            "<div class='date'>" + dateStr + "</div>" +
             
-            "<div class='slot'>" +
-            "<div class='time'>06:00–09:00</div>" +
-            "<div class='label'>બાકીનો વિસ્તાર</div>" +
-            "</div>" +
-            
-            "<div class='slot'>" +
-            "<div class='time'>09:00–10:30</div>" +
-            "<div class='label'>સોસાયટી</div>" +
-            "</div>" +
-            
-            "<div class='slot'>" +
-            "<div class='time'>10:30–12:00</div>" +
-            "<div class='label'>મફત નગરી</div>" +
-            "</div>" +
-            
-            "<div class='slot'>" +
-            "<div class='time'>12:00–13:30</div>" +
-            "<div class='label'>યાદવ નગરી + ચૌધરી ફરીયો</div>" +
-            "</div>" +
+            slotsHtml.toString() +
             
             "<div class='note'>" +
             "📝 <strong>નોંધ:</strong> વીજળી, મોટર સમસ્યા અથવા અન્ય આકસ્મિક કારણોથી સમયમાં ફેરફાર થઈ શકે છે.<br>" +
@@ -129,11 +232,11 @@ public class MainActivity extends Activity {
             "</html>";
     }
     
-    private String getCurrentDate() {
-        java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat(
-            "EEEE, dd MMMM yyyy", 
-            java.util.Locale.ENGLISH
-        );
-        return sdf.format(new java.util.Date());
+    private void addSlot(StringBuilder sb, String time, String label) {
+        sb.append("<div class='slot'>");
+        sb.append("<div class='time'>").append(time).append("</div>");
+        sb.append("<div class='label'>").append(label).append("</div>");
+        sb.append("</div>");
     }
-}
+            }
+                        
