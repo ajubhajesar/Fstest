@@ -91,14 +91,13 @@ public class MainActivity extends Activity {
         mainLayout.setPadding(16, 16, 16, 16);
         
         // Title (Optional - can be removed for empty action bar)
-        // REMOVED TITLE
-        // TextView title = new TextView(this);
-        // title.setText("💧 પાણી સમયપત્રક");
-        // title.setTextSize(24);
-        // title.setTextColor(Color.WHITE);
-        // title.setTypeface(null, android.graphics.Typeface.BOLD);
-        // title.setPadding(0, 0, 0, 24);
-        // mainLayout.addView(title);
+        TextView title = new TextView(this);
+        title.setText("💧 પાણી સમયપત્રક");
+        title.setTextSize(24);
+        title.setTextColor(Color.WHITE);
+        title.setTypeface(null, android.graphics.Typeface.BOLD);
+        title.setPadding(0, 0, 0, 24);
+        mainLayout.addView(title);
         
         // WebView for schedules
         webView = new WebView(this);

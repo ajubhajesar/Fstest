@@ -9,6 +9,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Build;
 import android.support.v4.app.NotificationCompat;
+import java.util.Calendar;
 
 public class NotificationReceiver extends BroadcastReceiver {
     
@@ -27,7 +28,6 @@ public class NotificationReceiver extends BroadcastReceiver {
         
         if (action.equals("MORNING_ALERT")) {
             showMorningNotification(context, nm);
-            // Reschedule for tomorrow
             scheduleNextMorning(context);
         } else if (action.equals("AREA_ALERT")) {
             String area = intent.getStringExtra("area");
@@ -39,7 +39,6 @@ public class NotificationReceiver extends BroadcastReceiver {
         } else if (action.equals("DONE")) {
             int notifId = intent.getIntExtra("notif_id", 0);
             if (nm != null) nm.cancel(notifId);
-            // Reset snooze count
             SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
             prefs.edit().putInt(KEY_SNOOZE_COUNT + notifId, 0).apply();
         }
@@ -56,20 +55,20 @@ public class NotificationReceiver extends BroadcastReceiver {
     
     private void showMorningNotification(Context context, NotificationManager nm) {
         SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-        int sourcePref = prefs.getInt("morning_source_pref", 0); // 0=Both, 1=Narmada, 2=Borewell
+        int sourcePref = prefs.getInt("morning_source_pref", 0);
         
-        Calendar cal = java.util.Calendar.getInstance();
-        java.util.Calendar seed = java.util.Calendar.getInstance();
-        seed.set(2025, java.util.Calendar.AUGUST, 29);
+        Calendar cal = Calendar.getInstance();
+        Calendar seed = Calendar.getInstance();
+        seed.set(2025, Calendar.AUGUST, 29);
         long days = (cal.getTimeInMillis() - seed.getTimeInMillis()) / (1000*60*60*24);
         boolean isBorewell = (days % 2 == 0);
         
         boolean shouldNotify = false;
         String sourceName = isBorewell ? "બોરવેલ (Borewell)" : "નર્મદા (Narmada)";
         
-        if (sourcePref == 0) shouldNotify = true; // Both
-        else if (sourcePref == 1 && !isBorewell) shouldNotify = true; // Only Narmada
-        else if (sourcePref == 2 && isBorewell) shouldNotify = true; // Only Borewell
+        if (sourcePref == 0) shouldNotify = true;
+        else if (sourcePref == 1 && !isBorewell) shouldNotify = true;
+        else if (sourcePref == 2 && isBorewell) shouldNotify = true;
         
         if (!shouldNotify) return;
         
@@ -137,15 +136,13 @@ public class NotificationReceiver extends BroadcastReceiver {
         SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         int snoozeCount = prefs.getInt(KEY_SNOOZE_COUNT + notifId, 0);
         
-        if (snoozeCount >= 3) return; // Max 3 snoozes
+        if (snoozeCount >= 3) return;
         
         prefs.edit().putInt(KEY_SNOOZE_COUNT + notifId, snoozeCount + 1).apply();
         
-        // Cancel current notification
         NotificationManager nm = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         if (nm != null) nm.cancel(notifId);
         
-        // Schedule new alarm 5 minutes from now
         android.app.AlarmManager am = (android.app.AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         Intent newIntent = new Intent(context, NotificationReceiver.class);
         
@@ -161,9 +158,9 @@ public class NotificationReceiver extends BroadcastReceiver {
         PendingIntent pi = PendingIntent.getBroadcast(context, notifId, newIntent,
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         
-        long triggerAt = System.currentTimeMillis() + (5 * 60 * 1000); // 5 minutes
+        long triggerAt = System.currentTimeMillis() + (5 * 60 * 1000);
         
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+        if (Build.VERSION.SDK_INT >= 23) {
             am.setExactAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, triggerAt, pi);
         } else {
             am.setExact(android.app.AlarmManager.RTC_WAKEUP, triggerAt, pi);
@@ -178,17 +175,16 @@ public class NotificationReceiver extends BroadcastReceiver {
         PendingIntent pi = PendingIntent.getBroadcast(context, 1000, intent,
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         
-        java.util.Calendar cal = java.util.Calendar.getInstance();
-        cal.add(java.util.Calendar.DAY_OF_MONTH, 1);
-        cal.set(java.util.Calendar.HOUR_OF_DAY, 7);
-        cal.set(java.util.Calendar.MINUTE, 45);
-        cal.set(java.util.Calendar.SECOND, 0);
+        Calendar cal = Calendar.getInstance();
+        cal.add(Calendar.DAY_OF_MONTH, 1);
+        cal.set(Calendar.HOUR_OF_DAY, 7);
+        cal.set(Calendar.MINUTE, 45);
+        cal.set(Calendar.SECOND, 0);
         
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+        if (Build.VERSION.SDK_INT >= 23) {
             am.setExactAndAllowWhileIdle(android.app.AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(), pi);
         } else {
             am.setExact(android.app.AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(), pi);
         }
     }
-          }
-            
+}

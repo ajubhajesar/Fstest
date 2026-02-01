@@ -9,7 +9,6 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <application
-        android:theme="@android:style/Theme.Material.NoActionBar"
         android:label="Fstest"
         android:allowBackup="true">
 
