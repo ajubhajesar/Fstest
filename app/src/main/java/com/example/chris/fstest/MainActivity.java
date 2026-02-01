@@ -571,6 +571,8 @@ public class MainActivity extends Activity {
         String first = (days % 2 == 0) ? "society" : "mafat";
         if (swap) first = first.equals("society") ? "mafat" : "society";
         String second = first.equals("society") ? "mafat" : "society";
+        String firstLabel = first.equals("society") ? "સોસાયટી" : "મફત નગરી";
+        String secondLabel = second.equals("society") ? "સોસાયટી" : "મફત નગરી";
         
         int alarmIdx = 0;
         
