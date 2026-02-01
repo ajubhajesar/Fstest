@@ -39,7 +39,9 @@ public class MainActivity extends Activity {
     private TextView tvNextAlert;
     private SharedPreferences prefs;
     private LinearLayout notifContainer;
+    private LinearLayout scheduleContainer;
     private boolean notifExpanded = false;
+    private boolean scheduleExpanded = false;
     
     private static final String PREFS_NAME = "TankSchedulePrefs";
     private static final String KEY_TANK_FILL_TEMP = "tank_fill_today_temp";
@@ -47,13 +49,13 @@ public class MainActivity extends Activity {
     private static final String KEY_SWAP_MS = "mf_society_swap";
     private static final String KEY_MORNING_ALERT = "morning_alert_enabled";
     private static final String KEY_MORNING_SOURCE = "morning_source_pref";
-    private static final String KEY_AREA_ALERT = "area_alert_enabled";
     private static final String KEY_AREA_YADAV = "area_yadav";
     private static final String KEY_AREA_MAFAT = "area_mafat";
     private static final String KEY_AREA_SOCIETY = "area_society";
     private static final String KEY_AREA_REMAINING = "area_remaining";
     private static final String KEY_MINUTES_BEFORE = "minutes_before";
     private static final String KEY_NOTIF_EXPANDED = "notif_expanded";
+    private static final String KEY_SCHED_EXPANDED = "sched_expanded";
     
     private static final int REQ_CODE_MORNING = 1000;
     private static final int REQ_CODE_AREA_BASE = 2000;
@@ -72,6 +74,7 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
         notifExpanded = prefs.getBoolean(KEY_NOTIF_EXPANDED, false);
+        scheduleExpanded = prefs.getBoolean(KEY_SCHED_EXPANDED, false);
         
         ScrollView scrollView = new ScrollView(this);
         scrollView.setBackgroundColor(Color.BLACK);
@@ -90,52 +93,7 @@ public class MainActivity extends Activity {
         title.setPadding(0, 0, 0, 24);
         mainLayout.addView(title);
         
-        // Schedule Settings Card
-        LinearLayout settingsCard = createCard();
-        addCardTitle(settingsCard, "⚙️ સમયપત્રક સેટિંગ્સ");
-        
-        CheckBox cbSwap = createCheckBox("મફત/સોસાયટી અદલાબદલી (Swap)");
-        cbSwap.setChecked(prefs.getBoolean(KEY_SWAP_MS, false));
-        cbSwap.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                prefs.edit().putBoolean(KEY_SWAP_MS, isChecked).apply();
-                refreshAll();
-            }
-        });
-        settingsCard.addView(cbSwap);
-        
-        CheckBox cbTankPersist = createCheckBox("ટાંકી ભરવાની મોડ (Persistent)");
-        cbTankPersist.setChecked(prefs.getBoolean(KEY_TANK_FILL_PERSIST, false));
-        cbTankPersist.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                prefs.edit().putBoolean(KEY_TANK_FILL_PERSIST, isChecked).apply();
-                refreshAll();
-            }
-        });
-        settingsCard.addView(cbTankPersist);
-        
-        CheckBox cbTankTemp = createCheckBox("ટાંકો ભરાઈ રહ્યો છે (Today Only)");
-        cbTankTemp.setChecked(prefs.getBoolean(KEY_TANK_FILL_TEMP, false));
-        cbTankTemp.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                prefs.edit().putBoolean(KEY_TANK_FILL_TEMP, isChecked).apply();
-                refreshAll();
-            }
-        });
-        settingsCard.addView(cbTankTemp);
-        
-        mainLayout.addView(settingsCard);
-        
-        // Spacer
-        View spacer = new View(this);
-        spacer.setLayoutParams(new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, 16));
-        mainLayout.addView(spacer);
-        
-        // WebView for schedules - FIXED HEIGHT
+        // WebView for schedules
         webView = new WebView(this);
         webView.setBackgroundColor(Color.BLACK);
         WebSettings ws = webView.getSettings();
@@ -148,12 +106,17 @@ public class MainActivity extends Activity {
         );
         webParams.setMargins(0, 0, 0, 16);
         webView.setLayoutParams(webParams);
-        
         mainLayout.addView(webView);
         
-        // Notification Settings Expandable Section
+        // Spacer
+        View spacer = new View(this);
+        spacer.setLayoutParams(new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, 16));
+        mainLayout.addView(spacer);
+        
+        // Notification Section (FIRST)
         final Button btnToggleNotif = new Button(this);
-        btnToggleNotif.setText(notifExpanded ? "🔼 Hide Notifications" : "🔽 Notification Settings");
+        btnToggleNotif.setText(notifExpanded ? "🔼 નોટિફિકેશન સેટિંગ્સ" : "🔽 નોટિફિકેશન સેટિંગ્સ");
         btnToggleNotif.setTextColor(Color.WHITE);
         btnToggleNotif.setBackgroundColor(Color.parseColor("#1a1a1a"));
         btnToggleNotif.setTextSize(16);
@@ -164,15 +127,13 @@ public class MainActivity extends Activity {
                 notifExpanded = !notifExpanded;
                 prefs.edit().putBoolean(KEY_NOTIF_EXPANDED, notifExpanded).apply();
                 notifContainer.setVisibility(notifExpanded ? View.VISIBLE : View.GONE);
-                btnToggleNotif.setText(notifExpanded ? "🔼 Hide Notifications" : "🔽 Notification Settings");
+                btnToggleNotif.setText(notifExpanded ? "🔼 નોટિફિકેશન સેટિંગ્સ" : "🔽 નોટિફિકેશન સેટિંગ્સ");
             }
         });
         mainLayout.addView(btnToggleNotif);
         
-        // Notification Container (Expandable)
         notifContainer = createCard();
         notifContainer.setVisibility(notifExpanded ? View.VISIBLE : View.GONE);
-        addCardTitle(notifContainer, "🔔 એલર્ટ સેટિંગ્સ");
         
         // Morning Alert
         CheckBox cbMorning = createCheckBox("સવારના 7:45 નો એલર્ટ");
@@ -203,6 +164,7 @@ public class MainActivity extends Activity {
                 prefs.edit().putInt(KEY_MORNING_SOURCE, position).apply();
                 ((TextView) parent.getChildAt(0)).setTextColor(Color.WHITE);
                 scheduleMorningAlert(prefs.getBoolean(KEY_MORNING_ALERT, false));
+                refreshAll();
             }
             public void onNothingSelected(AdapterView<?> parent) {}
         });
@@ -211,7 +173,7 @@ public class MainActivity extends Activity {
         addDivider(notifContainer);
         
         // Area Selection Header
-        TextView lblAreas = createLabel("તમારા વિસ્તારો (Select areas):");
+        TextView lblAreas = createLabel("તમારા વિસ્તારો:");
         notifContainer.addView(lblAreas);
         
         // Area Checkboxes
@@ -222,6 +184,7 @@ public class MainActivity extends Activity {
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 prefs.edit().putBoolean(KEY_AREA_YADAV, isChecked).apply();
                 scheduleAreaAlerts();
+                refreshAll();
             }
         });
         notifContainer.addView(cbYadav);
@@ -233,6 +196,7 @@ public class MainActivity extends Activity {
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 prefs.edit().putBoolean(KEY_AREA_MAFAT, isChecked).apply();
                 scheduleAreaAlerts();
+                refreshAll();
             }
         });
         notifContainer.addView(cbMafat);
@@ -244,6 +208,7 @@ public class MainActivity extends Activity {
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 prefs.edit().putBoolean(KEY_AREA_SOCIETY, isChecked).apply();
                 scheduleAreaAlerts();
+                refreshAll();
             }
         });
         notifContainer.addView(cbSociety);
@@ -255,6 +220,7 @@ public class MainActivity extends Activity {
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 prefs.edit().putBoolean(KEY_AREA_REMAINING, isChecked).apply();
                 scheduleAreaAlerts();
+                refreshAll();
             }
         });
         notifContainer.addView(cbRemaining);
@@ -282,6 +248,7 @@ public class MainActivity extends Activity {
                     int val = Integer.parseInt(s.toString());
                     prefs.edit().putInt(KEY_MINUTES_BEFORE, val).apply();
                     scheduleAreaAlerts();
+                    refreshAll();
                 } catch (Exception e) {}
             }
         });
@@ -290,14 +257,82 @@ public class MainActivity extends Activity {
         
         // Next Alert Info
         tvNextAlert = new TextView(this);
-        tvNextAlert.setTextSize(12);
-        tvNextAlert.setTextColor(Color.GRAY);
+        tvNextAlert.setTextSize(13);
+        tvNextAlert.setTextColor(Color.parseColor("#aaaaaa"));
         tvNextAlert.setPadding(0, 16, 0, 0);
         notifContainer.addView(tvNextAlert);
         
         mainLayout.addView(notifContainer);
         
-        // Keyboard Button
+        // Spacer
+        View spacer2 = new View(this);
+        spacer2.setLayoutParams(new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, 16));
+        mainLayout.addView(spacer2);
+        
+        // Schedule Settings Section (SECOND)
+        final Button btnToggleSched = new Button(this);
+        btnToggleSched.setText(scheduleExpanded ? "🔼 સમયપત્રક સેટિંગ્સ" : "🔽 સમયપત્રક સેટિંગ્સ");
+        btnToggleSched.setTextColor(Color.WHITE);
+        btnToggleSched.setBackgroundColor(Color.parseColor("#1a1a1a"));
+        btnToggleSched.setTextSize(16);
+        btnToggleSched.setPadding(16, 24, 16, 24);
+        btnToggleSched.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                scheduleExpanded = !scheduleExpanded;
+                prefs.edit().putBoolean(KEY_SCHED_EXPANDED, scheduleExpanded).apply();
+                scheduleContainer.setVisibility(scheduleExpanded ? View.VISIBLE : View.GONE);
+                btnToggleSched.setText(scheduleExpanded ? "🔼 સમયપત્રક સેટિંગ્સ" : "🔽 સમયપત્રક સેટિંગ્સ");
+            }
+        });
+        mainLayout.addView(btnToggleSched);
+        
+        scheduleContainer = createCard();
+        scheduleContainer.setVisibility(scheduleExpanded ? View.VISIBLE : View.GONE);
+        
+        CheckBox cbSwap = createCheckBox("મફત/સોસાયટી અદલાબદલી (Swap)");
+        cbSwap.setChecked(prefs.getBoolean(KEY_SWAP_MS, false));
+        cbSwap.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                prefs.edit().putBoolean(KEY_SWAP_MS, isChecked).apply();
+                refreshAll();
+            }
+        });
+        scheduleContainer.addView(cbSwap);
+        
+        CheckBox cbTankPersist = createCheckBox("ટાંકી ભરવાની મોડ (Persistent)");
+        cbTankPersist.setChecked(prefs.getBoolean(KEY_TANK_FILL_PERSIST, false));
+        cbTankPersist.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                prefs.edit().putBoolean(KEY_TANK_FILL_PERSIST, isChecked).apply();
+                refreshAll();
+            }
+        });
+        scheduleContainer.addView(cbTankPersist);
+        
+        CheckBox cbTankTemp = createCheckBox("ટાંકો ભરાઈ રહ્યો છે (Today Only)");
+        cbTankTemp.setChecked(prefs.getBoolean(KEY_TANK_FILL_TEMP, false));
+        cbTankTemp.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                prefs.edit().putBoolean(KEY_TANK_FILL_TEMP, isChecked).apply();
+                refreshAll();
+            }
+        });
+        scheduleContainer.addView(cbTankTemp);
+        
+        mainLayout.addView(scheduleContainer);
+        
+        // Spacer
+        View spacer3 = new View(this);
+        spacer3.setLayoutParams(new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, 16));
+        mainLayout.addView(spacer3);
+        
+        // Keyboard Button (THIRD/BOTTOM)
         Button btnKeyboard = new Button(this);
         btnKeyboard.setText("⌨️ Keyboard Service Settings");
         btnKeyboard.setTextColor(Color.WHITE);
@@ -326,19 +361,9 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.WRAP_CONTENT);
-        params.setMargins(0, 0, 0, 16);
+        params.setMargins(0, 0, 0, 0);
         card.setLayoutParams(params);
         return card;
-    }
-    
-    private void addCardTitle(LinearLayout parent, String text) {
-        TextView tv = new TextView(this);
-        tv.setText(text);
-        tv.setTextSize(16);
-        tv.setTextColor(Color.WHITE);
-        tv.setTypeface(null, android.graphics.Typeface.BOLD);
-        tv.setPadding(0, 0, 0, 16);
-        parent.addView(tv);
     }
     
     private CheckBox createCheckBox(String text) {
@@ -353,7 +378,7 @@ public class MainActivity extends Activity {
     private TextView createLabel(String text) {
         TextView tv = new TextView(this);
         tv.setText(text);
-        tv.setTextColor(Color.LTGRAY);
+        tv.setTextColor(Color.parseColor("#aaaaaa"));
         tv.setTextSize(14);
         tv.setPadding(0, 8, 0, 8);
         return tv;
@@ -375,22 +400,115 @@ public class MainActivity extends Activity {
     
     private void updateNextAlertInfo() {
         StringBuilder sb = new StringBuilder();
+        sb.append("આગામી એલર્ટ:\n");
+        sb.append("━━━━━━━━━━━━━━\n");
         
+        boolean hasAlert = false;
+        
+        // Morning Alert
         if (prefs.getBoolean(KEY_MORNING_ALERT, false)) {
-            sb.append("• સવારે 7:45 (Morning Alert)\n");
+            Calendar cal = Calendar.getInstance();
+            Calendar seed = Calendar.getInstance();
+            seed.set(2025, Calendar.AUGUST, 29);
+            long days = (cal.getTimeInMillis() - seed.getTimeInMillis()) / (1000*60*60*24);
+            boolean isBorewell = (days % 2 == 0);
+            String source = isBorewell ? "બોરવેલ" : "નર્મદા";
+            sb.append("🌅 07:45 AM = સવારનો એલર્ટ (").append(source).append(")\n");
+            hasAlert = true;
         }
         
-        boolean anyArea = prefs.getBoolean(KEY_AREA_YADAV, false) || 
-                         prefs.getBoolean(KEY_AREA_MAFAT, false) ||
-                         prefs.getBoolean(KEY_AREA_SOCIETY, false) || 
-                         prefs.getBoolean(KEY_AREA_REMAINING, false);
+        // Area Alerts - Calculate today's schedule
+        int minsBefore = prefs.getInt(KEY_MINUTES_BEFORE, 15);
+        Calendar now = Calendar.getInstance();
+        int todayDay = now.get(Calendar.DAY_OF_MONTH);
+        long diffMillis = now.getTimeInMillis() - SEED_DATE.getTimeInMillis();
+        int days = (int) (diffMillis / (1000 * 60 * 60 * 24));
         
-        if (anyArea) {
-            int mins = prefs.getInt(KEY_MINUTES_BEFORE, 15);
-            sb.append("• Area alerts (").append(mins).append(" min before)\n");
+        boolean firstHalf = todayDay <= 15;
+        boolean swap = prefs.getBoolean(KEY_SWAP_MS, false);
+        boolean tankFill = prefs.getBoolean(KEY_TANK_FILL_TEMP, false) || 
+                          prefs.getBoolean(KEY_TANK_FILL_PERSIST, false);
+        
+        String first = (days % 2 == 0) ? "society" : "mafat";
+        if (swap) first = first.equals("society") ? "mafat" : "society";
+        String second = first.equals("society") ? "mafat" : "society";
+        String firstLabel = first.equals("society") ? "સોસાયટી" : "મફત નગરી";
+        String secondLabel = second.equals("society") ? "સોસાયટી" : "મફત નગરી";
+        
+        if (firstHalf) {
+            if (tankFill) {
+                // 06:00 Remaining, 11:00 Yadav+First, 12:30 Second
+                if (prefs.getBoolean(KEY_AREA_REMAINING, false)) {
+                    sb.append("⏰ 06:00 AM = બાકીનો વિસ્તાર (").append(minsBefore).append(" મિનિટ પહેલાં એલર્ટ)\n");
+                    hasAlert = true;
+                }
+                if (prefs.getBoolean(KEY_AREA_YADAV, false)) {
+                    String txt = "યાદવ નગરી + ચૌધરી ફરીયો";
+                    if (first.equals("society")) txt += " + સોસાયટી";
+                    else txt += " + મફત નગરી";
+                    sb.append("⏰ 11:00 AM = ").append(txt).append(" (").append(minsBefore).append(" મિનિટ પહેલાં એલર્ટ)\n");
+                    hasAlert = true;
+                }
+                if (second.equals("society") && prefs.getBoolean(KEY_AREA_SOCIETY, false)) {
+                    sb.append("⏰ 12:30 PM = સોસાયટી (").append(minsBefore).append(" મિનિટ પહેલાં એલર્ટ)\n");
+                    hasAlert = true;
+                } else if (second.equals("mafat") && prefs.getBoolean(KEY_AREA_MAFAT, false)) {
+                    sb.append("⏰ 12:30 PM = મફત નગરી (").append(minsBefore).append(" મિનિટ પહેલાં એલર્ટ)\n");
+                    hasAlert = true;
+                }
+            } else {
+                // 06:00 Remaining, 09:00 First, 10:30 Second, 12:00 Yadav
+                if (prefs.getBoolean(KEY_AREA_REMAINING, false)) {
+                    sb.append("⏰ 06:00 AM = બાકીનો વિસ્તાર (").append(minsBefore).append(" મિનિટ પહેલાં એલર્ટ)\n");
+                    hasAlert = true;
+                }
+                if (first.equals("society") && prefs.getBoolean(KEY_AREA_SOCIETY, false)) {
+                    sb.append("⏰ 09:00 AM = સોસાયટી (").append(minsBefore).append(" મિનિટ પહેલાં એલર્ટ)\n");
+                    hasAlert = true;
+                } else if (first.equals("mafat") && prefs.getBoolean(KEY_AREA_MAFAT, false)) {
+                    sb.append("⏰ 09:00 AM = મફત નગરી (").append(minsBefore).append(" મિનિટ પહેલાં એલર્ટ)\n");
+                    hasAlert = true;
+                }
+                if (second.equals("society") && prefs.getBoolean(KEY_AREA_SOCIETY, false)) {
+                    sb.append("⏰ 10:30 AM = સોસાયટી (").append(minsBefore).append(" મિનિટ પહેલાં એલર્ટ)\n");
+                    hasAlert = true;
+                } else if (second.equals("mafat") && prefs.getBoolean(KEY_AREA_MAFAT, false)) {
+                    sb.append("⏰ 10:30 AM = મફત નગરી (").append(minsBefore).append(" મિનિટ પહેલાં એલર્ટ)\n");
+                    hasAlert = true;
+                }
+                if (prefs.getBoolean(KEY_AREA_YADAV, false)) {
+                    sb.append("⏰ 12:00 PM = યાદવ નગરી + ચૌધરી ફરીયો (").append(minsBefore).append(" મિનિટ પહેલાં એલર્ટ)\n");
+                    hasAlert = true;
+                }
+            }
+        } else {
+            // Second half: 06:00 Yadav+First, 07:30 Second, 09:00 Remaining
+            if (prefs.getBoolean(KEY_AREA_YADAV, false)) {
+                String txt = "યાદવ નગરી + ચૌધરી ફરીયો";
+                sb.append("⏰ 06:00 AM = ").append(txt).append(" (").append(minsBefore).append(" મિનિટ પહેલાં એલર્ટ)\n");
+                hasAlert = true;
+            }
+            if (first.equals("society") && prefs.getBoolean(KEY_AREA_SOCIETY, false)) {
+                sb.append("⏰ 06:00 AM = સોસાયટી (").append(minsBefore).append(" મિનિટ પહેલાં એલર્ટ)\n");
+                hasAlert = true;
+            } else if (first.equals("mafat") && prefs.getBoolean(KEY_AREA_MAFAT, false)) {
+                sb.append("⏰ 06:00 AM = મફત નગરી (").append(minsBefore).append(" મિનિટ પહેલાં એલર્ટ)\n");
+                hasAlert = true;
+            }
+            if (second.equals("society") && prefs.getBoolean(KEY_AREA_SOCIETY, false)) {
+                sb.append("⏰ 07:30 AM = સોસાયટી (").append(minsBefore).append(" મિનિટ પહેલાં એલર્ટ)\n");
+                hasAlert = true;
+            } else if (second.equals("mafat") && prefs.getBoolean(KEY_AREA_MAFAT, false)) {
+                sb.append("⏰ 07:30 AM = મફત નગરી (").append(minsBefore).append(" મિનિટ પહેલાં એલર્ટ)\n");
+                hasAlert = true;
+            }
+            if (prefs.getBoolean(KEY_AREA_REMAINING, false)) {
+                sb.append("⏰ 09:00 AM = બાકીનો વિસ્તાર (").append(minsBefore).append(" મિનિટ પહેલાં એલર્ટ)\n");
+                hasAlert = true;
+            }
         }
         
-        if (sb.length() == 0) {
+        if (!hasAlert) {
             sb.append("કોઈ એલર્ટ સેટ નથી");
         }
         
@@ -456,7 +574,7 @@ public class MainActivity extends Activity {
         
         int alarmIdx = 0;
         
-        // Generate slots and check each against selected areas
+        // Schedule slots matching selected areas
         if (firstHalf) {
             if (tankFill) {
                 // 06:00 - Remaining
@@ -464,9 +582,10 @@ public class MainActivity extends Activity {
                     alarmIdx = scheduleIfPossible(am, now, 6, 0, minsBefore, "બાકીનો વિસ્તાર", alarmIdx);
                 }
                 // 11:00 - Yadav + First
-                if (prefs.getBoolean(KEY_AREA_YADAV, false)) {
-                    String label = "યાદવ નગરી" + (first.equals("society") ? " + સોસાયટી" : " + મફત નગરી");
-                    alarmIdx = scheduleIfPossible(am, now, 11, 0, minsBefore, label, alarmIdx);
+                if (prefs.getBoolean(KEY_AREA_YADAV, false) || 
+                    (first.equals("society") && prefs.getBoolean(KEY_AREA_SOCIETY, false)) ||
+                    (first.equals("mafat") && prefs.getBoolean(KEY_AREA_MAFAT, false))) {
+                    alarmIdx = scheduleIfPossible(am, now, 11, 0, minsBefore, "યાદવ નગરી + " + (first.equals("society") ? "સોસાયટી" : "મફત નગરી"), alarmIdx);
                 }
                 // 12:30 - Second
                 if (second.equals("society") && prefs.getBoolean(KEY_AREA_SOCIETY, false)) {
@@ -493,19 +612,20 @@ public class MainActivity extends Activity {
                 }
                 // 12:00 - Yadav
                 if (prefs.getBoolean(KEY_AREA_YADAV, false)) {
-                    alarmIdx = scheduleIfPossible(am, now, 12, 0, minsBefore, "યાદવ નગરી", alarmIdx);
+                    alarmIdx = scheduleIfPossible(am, now, 12, 0, minsBefore, "યાદવ નગરી + ચૌધરી ફરીયો", alarmIdx);
                 }
             }
         } else {
-            // Second half of month
+            // Second half
             // 06:00 - Yadav + First
-            if (prefs.getBoolean(KEY_AREA_YADAV, false)) {
-                alarmIdx = scheduleIfPossible(am, now, 6, 0, minsBefore, "યાદવ નગરી", alarmIdx);
-            }
-            if (first.equals("society") && prefs.getBoolean(KEY_AREA_SOCIETY, false)) {
-                alarmIdx = scheduleIfPossible(am, now, 6, 0, minsBefore, "સોસાયટી (06:00)", alarmIdx);
-            } else if (first.equals("mafat") && prefs.getBoolean(KEY_AREA_MAFAT, false)) {
-                alarmIdx = scheduleIfPossible(am, now, 6, 0, minsBefore, "મફત નગરી (06:00)", alarmIdx);
+            if (prefs.getBoolean(KEY_AREA_YADAV, false) ||
+                (first.equals("society") && prefs.getBoolean(KEY_AREA_SOCIETY, false)) ||
+                (first.equals("mafat") && prefs.getBoolean(KEY_AREA_MAFAT, false))) {
+                String label = "યાદવ નગરી + ચૌધરી ફરીયો";
+                if (prefs.getBoolean(first.equals("society") ? KEY_AREA_SOCIETY : KEY_AREA_MAFAT, false)) {
+                    label += " + " + firstLabel;
+                }
+                alarmIdx = scheduleIfPossible(am, now, 6, 0, minsBefore, label, alarmIdx);
             }
             // 07:30 - Second
             if (second.equals("society") && prefs.getBoolean(KEY_AREA_SOCIETY, false)) {
@@ -553,22 +673,24 @@ public class MainActivity extends Activity {
     private String getScheduleHTML() {
         StringBuilder html = new StringBuilder();
         html.append("<!DOCTYPE html><html><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width,initial-scale=1'>");
-        // AMOLED Dark CSS - Pure black background
         html.append("<style>");
         html.append("body{font-family:system-ui;background:#000000;padding:0;margin:0;color:#ffffff}");
         html.append(".card{background:#121212;border:1px solid #333333;border-radius:12px;padding:16px;margin-bottom:16px}");
         html.append("h2{font-size:18px;margin:0 0 12px 0;color:#ffffff;font-weight:bold}");
+        html.append(".date{color:#aaaaaa;font-size:14px;font-weight:normal}");
         html.append(".badge{color:#4fc3f7;background:#0d2b3a;padding:4px 10px;border-radius:6px;font-size:13px;font-weight:600;display:inline-block;margin-bottom:8px}");
-        html.append(".date{color:#aaaaaa;font-size:13px;margin:8px 0 12px 0}");
         html.append(".slot{display:flex;padding:12px 0;border-top:1px solid #333333}");
         html.append(".slot:first-child{border-top:none}");
         html.append(".time{min-width:90px;font-weight:600;color:#4fc3f7;font-size:14px}");
         html.append(".label{flex:1;color:#ffffff;font-size:14px;padding-left:8px}");
-        html.append(".note{background:#1a1a1a;padding:12px;border-radius:8px;font-size:12px;color:#888888;margin-top:12px;border-left:3px solid #4fc3f7}");
+        html.append(".footer{color:#888888;font-size:12px;margin-top:16px;padding-top:16px;border-top:1px solid #333333}");
         html.append("</style></head><body>");
         
         html.append(getDayCardHtml(true));
         html.append(getDayCardHtml(false));
+        
+        // Footer note - only once
+        html.append("<div class='footer'>ℹ️ બાકીનો વિસ્તાર = વથાણ ચોક, બજાર ચોક અને નજીકના વિસ્તારો</div>");
         html.append("</body></html>");
         return html.toString();
     }
@@ -586,7 +708,7 @@ public class MainActivity extends Activity {
         boolean firstHalf = dayOfMonth <= 15;
         boolean swap = prefs.getBoolean(KEY_SWAP_MS, false);
         
-                boolean tankFill;
+        boolean tankFill;
         if (isToday) {
             tankFill = prefs.getBoolean(KEY_TANK_FILL_TEMP, false) || 
                       prefs.getBoolean(KEY_TANK_FILL_PERSIST, false);
@@ -606,29 +728,28 @@ public class MainActivity extends Activity {
             if (tankFill) {
                 addSlotHtml(slots, "06:00–09:00", "બાકીનો વિસ્તાર");
                 addSlotHtml(slots, "09:00–11:00", "ટાંકો ભરાઈ રહ્યો છે");
-                addSlotHtml(slots, "11:00–12:30", "યાદવ નગરી + " + firstLabel);
+                addSlotHtml(slots, "11:00–12:30", "યાદવ નગરી + ચૌધરી ફરીયો + " + firstLabel);
                 addSlotHtml(slots, "12:30–14:00", secondLabel);
             } else {
                 addSlotHtml(slots, "06:00–09:00", "બાકીનો વિસ્તાર");
                 addSlotHtml(slots, "09:00–10:30", firstLabel);
                 addSlotHtml(slots, "10:30–12:00", secondLabel);
-                addSlotHtml(slots, "12:00–13:30", "યાદવ નગરી");
+                addSlotHtml(slots, "12:00–13:30", "યાદવ નગરી + ચૌધરી ફરીયો");
             }
         } else {
-            addSlotHtml(slots, "06:00–07:30", "યાદવ નગરી + " + firstLabel);
+            addSlotHtml(slots, "06:00–07:30", "યાદવ નગરી + ચૌધરી ફરીયો + " + firstLabel);
             addSlotHtml(slots, "07:30–09:00", secondLabel);
             addSlotHtml(slots, "09:00–12:00", "બાકીનો વિસ્તાર");
         }
         
         String dateStr = new SimpleDateFormat("EEEE, dd MMMM yyyy", Locale.ENGLISH).format(cal.getTime());
-        String title = isToday ? "📅 આજે (Today)" : "📅 આવતીકાલે (Tomorrow)";
+        String title = isToday ? "📅 આજે | " : "📅 આવતીકાલે | ";
         
         StringBuilder card = new StringBuilder();
-        card.append("<div class='card'><h2>").append(title).append("</h2>");
+        card.append("<div class='card'><h2>").append(title).append("<span class='date'>").append(dateStr).append("</span></h2>");
         card.append("<span class='badge'>").append(source).append("</span>");
-        card.append("<div class='date'>").append(dateStr).append("</div>");
         card.append(slots);
-        card.append("<div class='note'>ℹ️ બાકીનો વિસ્તાર = વથાણ ચોક, બજાર ચોક અને નજીકના વિસ્તારો</div></div>");
+        card.append("</div>");
         
         return card.toString();
     }
@@ -637,4 +758,3 @@ public class MainActivity extends Activity {
         sb.append("<div class='slot'><div class='time'>").append(time).append("</div><div class='label'>").append(label).append("</div></div>");
     }
 }
-
