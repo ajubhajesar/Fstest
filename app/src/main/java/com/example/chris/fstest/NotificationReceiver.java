@@ -187,5 +187,4 @@ public class NotificationReceiver extends BroadcastReceiver {
             am.setExact(android.app.AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(), pi);
         }
     }
-                }
-            
+}
