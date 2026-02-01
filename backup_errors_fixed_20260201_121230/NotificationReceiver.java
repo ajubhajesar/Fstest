@@ -10,8 +10,6 @@ import android.content.SharedPreferences;
 import android.os.Build;
 import android.support.v4.app.NotificationCompat;
 
-import java.util.Calendar;
-
 public class NotificationReceiver extends BroadcastReceiver {
     
     private static final String PREFS_NAME = "TankSchedulePrefs";
