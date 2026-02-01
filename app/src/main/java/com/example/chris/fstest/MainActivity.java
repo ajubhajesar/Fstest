@@ -767,7 +767,7 @@ public class MainActivity extends Activity {
                 }
                 if (prefs.getBoolean(KEY_AREA_YADAV, false) || 
                     (first.equals("society") && prefs.getBoolean(KEY_AREA_SOCIETY, false)) ||
-                    (first.equals("mafat") && prefs.getBoolean(KEY_AREA_MAFAT, false)))) {
+                    (first.equals("mafat") && prefs.getBoolean(KEY_AREA_MAFAT, false))) {
                     alarmIdx = scheduleIfPossible(am, now, 11, 0, minsBefore, yadavWithFirst, alarmIdx);
                 }
                 if (second.equals("society") && prefs.getBoolean(KEY_AREA_SOCIETY, false)) {
