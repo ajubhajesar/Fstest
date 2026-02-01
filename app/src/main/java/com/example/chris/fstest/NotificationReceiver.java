@@ -80,6 +80,7 @@ public class NotificationReceiver extends BroadcastReceiver {
         
         if (!shouldNotify) return;
         
+        // Add reminder count text
         String reminderText = "";
         if (snoozeCount == 1) {
             reminderText = " (બીજી વાર યાદ કરાવે છે)";
@@ -112,6 +113,7 @@ public class NotificationReceiver extends BroadcastReceiver {
             .setAutoCancel(false)
             .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Done", donePi);
         
+        // Only show snooze button if less than 2 snoozes used
         if (snoozeCount < MAX_SNOOZE) {
             builder.addAction(android.R.drawable.ic_lock_idle_alarm, 
                 "Snooze " + SNOOZE_MINUTES + " min", snoozePi);
@@ -124,6 +126,7 @@ public class NotificationReceiver extends BroadcastReceiver {
         SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         int snoozeCount = prefs.getInt(KEY_SNOOZE_COUNT + notifId, 0);
         
+        // Add reminder count text
         String reminderText = "";
         if (snoozeCount == 1) {
             reminderText = " (બીજી વાર યાદ કરાવે છે)";
@@ -158,6 +161,7 @@ public class NotificationReceiver extends BroadcastReceiver {
             .setAutoCancel(false)
             .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Done", donePi);
         
+        // Only show snooze button if less than 2 snoozes used
         if (snoozeCount < MAX_SNOOZE) {
             builder.addAction(android.R.drawable.ic_lock_idle_alarm, 
                 "Snooze " + SNOOZE_MINUTES + " min", snoozePi);
@@ -167,6 +171,7 @@ public class NotificationReceiver extends BroadcastReceiver {
     }
     
     private void showTestNotification(Context context, NotificationManager nm, int testType) {
+        // Show exact same notification as real alerts, just triggered via test
         if (testType == 0) {
             showMorningNotification(context, nm);
         } else {
@@ -192,6 +197,7 @@ public class NotificationReceiver extends BroadcastReceiver {
         SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         int count = prefs.getInt(KEY_SNOOZE_COUNT + notifId, 0);
         
+        // If already max snoozes, just cancel and reset
         if (count >= MAX_SNOOZE) {
             NotificationManager nm = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
             if (nm != null) nm.cancel(notifId);
@@ -199,8 +205,10 @@ public class NotificationReceiver extends BroadcastReceiver {
             return;
         }
         
+        // Increment snooze count
         prefs.edit().putInt(KEY_SNOOZE_COUNT + notifId, count + 1).apply();
         
+        // Schedule next alarm for 5 minutes later
         AlarmManager am = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         Intent alertIntent = new Intent(context, NotificationReceiver.class);
         
@@ -229,6 +237,7 @@ public class NotificationReceiver extends BroadcastReceiver {
             }
         }
         
+        // Cancel current notification
         NotificationManager nm = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         if (nm != null) nm.cancel(notifId);
     }
