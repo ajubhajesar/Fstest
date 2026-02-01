@@ -26,6 +26,7 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.Spinner;
 import android.widget.TextView;
+import android.widget.Toast;
 import android.view.ViewGroup;
 import android.graphics.Color;
 import android.support.v4.app.NotificationCompat;
@@ -89,16 +90,6 @@ public class MainActivity extends Activity {
         mainLayout.setOrientation(LinearLayout.VERTICAL);
         mainLayout.setBackgroundColor(Color.BLACK);
         mainLayout.setPadding(16, 16, 16, 16);
-        
-        // Title (Optional - can be removed for empty action bar)
-        // REMOVED TITLE
-        // TextView title = new TextView(this);
-        // title.setText("💧 પાણી સમયપત્રક");
-        // title.setTextSize(24);
-        // title.setTextColor(Color.WHITE);
-        // title.setTypeface(null, android.graphics.Typeface.BOLD);
-        // title.setPadding(0, 0, 0, 24);
-        // mainLayout.addView(title);
         
         // WebView for schedules
         webView = new WebView(this);
@@ -323,7 +314,7 @@ public class MainActivity extends Activity {
         btnTest.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                sendTestNotification(spnTestType.getSelectedItemPosition(), etTestTime.getText().toString(), etMinutes.getText().toString());
+                sendTestNotification(spnTestType.getSelectedItemPosition(), etTestTime.getText().toString());
             }
         });
         notifContainer.addView(btnTest);
@@ -436,44 +427,46 @@ public class MainActivity extends Activity {
         }
     }
     
-    private void sendTestNotification(int type, String timeStr, String minsStr) {
-        int minsBefore = 15;
+    private void sendTestNotification(int type, String timeStr) {
+        // Parse time (HH:mm)
+        int hour = 9, minute = 0;
         try {
-            minsBefore = Integer.parseInt(minsStr);
-        } catch (Exception e) {}
-        
-        String title = "💧 ટેસ્ટ એલર્ટ";
-        String content = "";
-        
-        switch(type) {
-            case 0: // Morning
-                content = "સવારનો એલર્ટ (નર્મદા/બોરવેલ) - આ ટેસ્ટ છે";
-                break;
-            case 1: // Yadav
-                content = "યાદવ નગરી + ચૌધરી ફરીયો - " + timeStr + " વાગે પાણી";
-                break;
-            case 2: // Mafat
-                content = "મફત નગરી - " + timeStr + " વાગે પાણી";
-                break;
-            case 3: // Society
-                content = "સોસાયટી - " + timeStr + " વાગે પાણી";
-                break;
-            case 4: // Remaining
-                content = "બાકીનો વિસ્તાર - " + timeStr + " વાગે પાણી";
-                break;
+            String[] parts = timeStr.split(":");
+            hour = Integer.parseInt(parts[0]);
+            minute = Integer.parseInt(parts[1]);
+        } catch (Exception e) {
+            Toast.makeText(this, "Invalid time format. Use HH:mm", Toast.LENGTH_SHORT).show();
+            return;
         }
         
-        NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        Calendar cal = Calendar.getInstance();
+        cal.set(Calendar.HOUR_OF_DAY, hour);
+        cal.set(Calendar.MINUTE, minute);
+        cal.set(Calendar.SECOND, 0);
         
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setContentTitle(title)
-            .setContentText(content)
-            .setStyle(new NotificationCompat.BigTextStyle().bigText(content + "\n\n⏰ એલર્ટ " + minsBefore + " મિનિટ પહેલાં આવશે\nઆ ટેસ્ટ છે - તમારું સેટઅપ યોગ્ય છે!"))
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setAutoCancel(true);
+        // If time already passed today, schedule for 1 minute from now (immediate test)
+        if (cal.getTimeInMillis() < System.currentTimeMillis()) {
+            cal.add(Calendar.MINUTE, 1);
+        }
         
-        if (nm != null) nm.notify(9999, builder.build());
+        AlarmManager am = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+        Intent intent = new Intent(this, NotificationReceiver.class);
+        intent.setAction("TEST_NOTIFICATION");
+        intent.putExtra("test_type", type);
+        
+        PendingIntent pi = PendingIntent.getBroadcast(this, 9999, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+            
+        if (am != null) {
+            if (Build.VERSION.SDK_INT >= 23) {
+                am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(), pi);
+            } else {
+                am.setExact(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(), pi);
+            }
+        }
+        
+        SimpleDateFormat sdf = new SimpleDateFormat("hh:mm a", Locale.ENGLISH);
+        Toast.makeText(this, "Test scheduled for " + sdf.format(cal.getTime()), Toast.LENGTH_SHORT).show();
     }
     
     private LinearLayout createCard() {
@@ -534,7 +527,7 @@ public class MainActivity extends Activity {
         int days = (int) (diffMillis / (1000 * 60 * 60 * 24));
         int currentHour = now.get(Calendar.HOUR_OF_DAY);
         int currentMin = now.get(Calendar.MINUTE);
-        int currentTime = currentHour * 60 + currentMin; // minutes since midnight
+        int currentTime = currentHour * 60 + currentMin;
         
         boolean isBorewellToday = (days % 2 == 0);
         boolean firstHalf = todayDay <= 15;
@@ -559,61 +552,99 @@ public class MainActivity extends Activity {
         else if (morningSourcePref == 1 && !isBorewellToday) morningShouldAlert = true;
         else if (morningSourcePref == 2 && isBorewellToday) morningShouldAlert = true;
         
-        if (morningSelected) {
+        // FIXED: Only show morning in lists if it should alert (no Chinese text)
+        if (morningSelected && morningShouldAlert) {
             String source = isBorewellToday ? "બોરવેલ" : "નર્મદા";
-            String status;
             if (currentTime > morningTime) {
-                status = morningShouldAlert ? "✓" : "❌ (skiped:不匹配选择)";
-                passed.append(status).append(" 07:45 AM - સવારનો એલર્ટ (").append(source).append(")\n");
+                passed.append("✓ 07:45 AM - સવારનો એલર્ટ (").append(source).append(")\n");
                 hasPassed = true;
             } else {
-                status = "⏳";
-                upcoming.append(status).append(" 07:45 AM - સવારનો એલર્ટ (").append(source).append(")\n");
+                upcoming.append("⏳ 07:45 AM - સવારનો એલર્ટ (").append(source).append(")\n");
                 hasUpcoming = true;
             }
         }
         
-        // Today's area slots
+        // Today's area slots - FIXED: Proper hasPassed/hasUpcoming tracking
         if (firstHalf) {
             if (tankFillToday) {
                 // 06:00 - Remaining, 11:00 - Yadav+First, 12:30 - Second
-                checkSlot(passed, upcoming, currentTime, 6, 0, "બાકીનો વિસ્તાર", 
-                    prefs.getBoolean(KEY_AREA_REMAINING, false), hasPassed, hasUpcoming);
+                if (checkSlot(passed, upcoming, currentTime, 6, 0, "બાકીનો વિસ્તાર", 
+                    prefs.getBoolean(KEY_AREA_REMAINING, false))) {
+                    if (currentTime > 6*60) hasPassed = true; else hasUpcoming = true;
+                }
                 
                 String yadavSlot = "યાદવ નગરી + ચૌધરી ફરીયો";
                 boolean yadavSelected = prefs.getBoolean(KEY_AREA_YADAV, false);
                 boolean firstSelected = (first.equals("society") && prefs.getBoolean(KEY_AREA_SOCIETY, false)) ||
                                        (first.equals("mafat") && prefs.getBoolean(KEY_AREA_MAFAT, false));
-                if (yadavSelected || firstSelected) {
+                if ((yadavSelected || firstSelected)) {
                     String label = yadavSlot;
                     if (firstSelected) label += " + " + firstLabel;
-                    checkSlot(passed, upcoming, currentTime, 11, 0, label, true, hasPassed, hasUpcoming);
+                    if (checkSlot(passed, upcoming, currentTime, 11, 0, label, true)) {
+                        if (currentTime > 11*60) hasPassed = true; else hasUpcoming = true;
+                    }
                 }
                 
-                String secondSelectedArea = second.equals("society") ? "સોસાયટી" : "મફત નગરી";
-                checkSlot(passed, upcoming, currentTime, 12, 30, secondSelectedArea,
-                    (second.equals("society") && prefs.getBoolean(KEY_AREA_SOCIETY, false)) ||
-                    (second.equals("mafat") && prefs.getBoolean(KEY_AREA_MAFAT, false)), hasPassed, hasUpcoming);
+                if ((second.equals("society") && prefs.getBoolean(KEY_AREA_SOCIETY, false)) ||
+                    (second.equals("mafat") && prefs.getBoolean(KEY_AREA_MAFAT, false))) {
+                    String label = second.equals("society") ? "સોસાયટી" : "મફત નગરી";
+                    if (checkSlot(passed, upcoming, currentTime, 12, 30, label, true)) {
+                        if (currentTime > (12*60+30)) hasPassed = true; else hasUpcoming = true;
+                    }
+                }
             } else {
                 // 06:00 - Remaining, 09:00 - First, 10:30 - Second, 12:00 - Yadav
-                checkSlot(passed, upcoming, currentTime, 6, 0, "બાકીનો વિસ્તાર",
-                    prefs.getBoolean(KEY_AREA_REMAINING, false), hasPassed, hasUpcoming);
+                if (checkSlot(passed, upcoming, currentTime, 6, 0, "બાકીનો વિસ્તાર",
+                    prefs.getBoolean(KEY_AREA_REMAINING, false))) {
+                    if (currentTime > 6*60) hasPassed = true; else hasUpcoming = true;
+                }
                 
-                checkSlot(passed, upcoming, currentTime, 9, 0, firstLabel,
-                    (first.equals("society") && prefs.getBoolean(KEY_AREA_SOCIETY, false)) ||
-                    (first.equals("mafat") && prefs.getBoolean(KEY_AREA_MAFAT, false)), hasPassed, hasUpcoming);
+                if ((first.equals("society") && prefs.getBoolean(KEY_AREA_SOCIETY, false)) ||
+                    (first.equals("mafat") && prefs.getBoolean(KEY_AREA_MAFAT, false))) {
+                    if (checkSlot(passed, upcoming, currentTime, 9, 0, firstLabel, true)) {
+                        if (currentTime > 9*60) hasPassed = true; else hasUpcoming = true;
+                    }
+                }
                 
-                checkSlot(passed, upcoming, currentTime, 10, 30, secondLabel,
-                    (second.equals("society") && prefs.getBoolean(KEY_AREA_SOCIETY, false)) ||
-                    (second.equals("mafat") && prefs.getBoolean(KEY_AREA_MAFAT, false)), hasPassed, hasUpcoming);
+                if ((second.equals("society") && prefs.getBoolean(KEY_AREA_SOCIETY, false)) ||
+                    (second.equals("mafat") && prefs.getBoolean(KEY_AREA_MAFAT, false))) {
+                    if (checkSlot(passed, upcoming, currentTime, 10, 30, secondLabel, true)) {
+                        if (currentTime > (10*60+30)) hasPassed = true; else hasUpcoming = true;
+                    }
+                }
                 
-                checkSlot(passed, upcoming, currentTime, 12, 0, "યાદવ નગરી + ચૌધરી ફરીયો",
-                    prefs.getBoolean(KEY_AREA_YADAV, false), hasPassed, hasUpcoming);
+                if (checkSlot(passed, upcoming, currentTime, 12, 0, "યાદવ નગરી + ચૌધરી ફરીયો",
+                    prefs.getBoolean(KEY_AREA_YADAV, false))) {
+                    if (currentTime > 12*60) hasPassed = true; else hasUpcoming = true;
+                }
             }
         } else {
             // Second half: 06:00 - Yadav+First, 07:30 - Second, 09:00 - Remaining
             String yadavSlot = "યાદવ નગરી + ચૌધરી ફરીયો";
-            //... similar checks
+            boolean yadavSelected = prefs.getBoolean(KEY_AREA_YADAV, false);
+            boolean firstSelected = (first.equals("society") && prefs.getBoolean(KEY_AREA_SOCIETY, false)) ||
+                                   (first.equals("mafat") && prefs.getBoolean(KEY_AREA_MAFAT, false));
+            
+            if ((yadavSelected || firstSelected)) {
+                String label = yadavSlot;
+                if (firstSelected) label += " + " + firstLabel;
+                if (checkSlot(passed, upcoming, currentTime, 6, 0, label, true)) {
+                    if (currentTime > 6*60) hasPassed = true; else hasUpcoming = true;
+                }
+            }
+            
+            if ((second.equals("society") && prefs.getBoolean(KEY_AREA_SOCIETY, false)) ||
+                (second.equals("mafat") && prefs.getBoolean(KEY_AREA_MAFAT, false))) {
+                String label = second.equals("society") ? "સોસાયટી" : "મફત નગરી";
+                if (checkSlot(passed, upcoming, currentTime, 7, 30, label, true)) {
+                    if (currentTime > (7*60+30)) hasPassed = true; else hasUpcoming = true;
+                }
+            }
+            
+            if (checkSlot(passed, upcoming, currentTime, 9, 0, "બાકીનો વિસ્તાર",
+                prefs.getBoolean(KEY_AREA_REMAINING, false))) {
+                if (currentTime > 9*60) hasPassed = true; else hasUpcoming = true;
+            }
         }
         
         // Tomorrow's schedule (always in upcoming)
@@ -647,7 +678,7 @@ public class MainActivity extends Activity {
         if (tomorrowFirstHalf) {
             if (tomorrowTankFill) {
                 if (prefs.getBoolean(KEY_AREA_REMAINING, false)) upcoming.append("⏳ 06:00 AM - બાકીનો વિસ્તાર\n");
-                // Add others...
+                // Add others as needed...
             } else {
                 if (prefs.getBoolean(KEY_AREA_REMAINING, false)) upcoming.append("⏳ 06:00 AM - બાકીનો વિસ્તાર\n");
                 if (tomorrowFirst.equals("mafat") && prefs.getBoolean(KEY_AREA_MAFAT, false)) upcoming.append("⏳ 09:00 AM - મફત નગરી\n");
@@ -667,10 +698,11 @@ public class MainActivity extends Activity {
         }
         
         StringBuilder finalText = new StringBuilder();
+        // FIXED: Show passed section only if hasPassed is true (works for any alert type now)
         if (hasPassed) {
             finalText.append("📆 આજના પસાર થયેલા:\n").append(passed).append("\n");
         }
-        if (hasUpcoming || true) { // Always show upcoming
+        if (hasUpcoming) {
             finalText.append("📆 આગામી:\n").append(upcoming);
         }
         
@@ -680,19 +712,19 @@ public class MainActivity extends Activity {
         tvNextAlert.setText(finalText.toString());
     }
     
-    private void checkSlot(StringBuilder passed, StringBuilder upcoming, int currentTime, 
-                          int hour, int minute, String label, boolean isSelected, 
-                          boolean hasPassed, boolean hasUpcoming) {
+    // FIXED: Returns true if item was selected (added to passed or upcoming)
+    private boolean checkSlot(StringBuilder passed, StringBuilder upcoming, int currentTime, 
+                          int hour, int minute, String label, boolean isSelected) {
+        if (!isSelected) return false;
         int slotTime = hour * 60 + minute;
-        if (isSelected) {
-            if (currentTime > slotTime) {
-                passed.append("✓ ").append(String.format("%02d:%02d", hour, minute))
-                      .append(" - ").append(label).append("\n");
-            } else {
-                upcoming.append("⏳ ").append(String.format("%02d:%02d", hour, minute))
-                       .append(" - ").append(label).append("\n");
-            }
+        if (currentTime > slotTime) {
+            passed.append("✓ ").append(String.format("%02d:%02d", hour, minute))
+                  .append(" - ").append(label).append("\n");
+        } else {
+            upcoming.append("⏳ ").append(String.format("%02d:%02d", hour, minute))
+                   .append(" - ").append(label).append("\n");
         }
+        return true;
     }
     
     private void scheduleMorningAlert(boolean enable) {
