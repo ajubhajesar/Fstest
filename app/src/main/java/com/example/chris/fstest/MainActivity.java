@@ -14,8 +14,6 @@ import android.text.TextWatcher;
 import android.view.View;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
-import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.CompoundButton;
@@ -23,6 +21,8 @@ import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.Spinner;
+import android.widget.ArrayAdapter;
+import android.widget.AdapterView;
 import android.widget.TextView;
 import android.view.ViewGroup;
 import android.graphics.Color;
@@ -38,6 +38,8 @@ public class MainActivity extends Activity {
     private WebView webView;
     private TextView tvNextAlert;
     private SharedPreferences prefs;
+    private LinearLayout notifContainer;
+    private boolean notifExpanded = false;
     
     private static final String PREFS_NAME = "TankSchedulePrefs";
     private static final String KEY_TANK_FILL_TEMP = "tank_fill_today_temp";
@@ -46,21 +48,16 @@ public class MainActivity extends Activity {
     private static final String KEY_MORNING_ALERT = "morning_alert_enabled";
     private static final String KEY_MORNING_SOURCE = "morning_source_pref";
     private static final String KEY_AREA_ALERT = "area_alert_enabled";
-    private static final String KEY_MY_AREA = "my_area";
+    private static final String KEY_AREA_YADAV = "area_yadav";
+    private static final String KEY_AREA_MAFAT = "area_mafat";
+    private static final String KEY_AREA_SOCIETY = "area_society";
+    private static final String KEY_AREA_REMAINING = "area_remaining";
     private static final String KEY_MINUTES_BEFORE = "minutes_before";
+    private static final String KEY_NOTIF_EXPANDED = "notif_expanded";
     
     private static final int REQ_CODE_MORNING = 1000;
     private static final int REQ_CODE_AREA_BASE = 2000;
     
-    private static final String[] AREAS = {"Yadav", "Mafat", "Society", "Remaining", "All Areas"};
-    private static final String[] AREA_LABELS = {
-        "યાદવ નગરી + ચૌધરી ફરીયો", 
-        "મફત નગરી", 
-        "સોસાયટી", 
-        "બાકીનો વિસ્તાર",
-        "બધા વિસ્તારો"
-    };
-    private static final String[] SOURCES = {"Both", "Narmada", "Borewell"};
     private static final String[] SOURCE_LABELS = {"બંને (Both)", "માત્ર નર્મદા (Only Narmada)", "માત્ર બોરવેલ (Only Borewell)"};
     
     private static final Calendar SEED_DATE;
@@ -74,33 +71,30 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        notifExpanded = prefs.getBoolean(KEY_NOTIF_EXPANDED, false);
         
         ScrollView scrollView = new ScrollView(this);
+        scrollView.setBackgroundColor(Color.BLACK);
+        
         LinearLayout mainLayout = new LinearLayout(this);
         mainLayout.setOrientation(LinearLayout.VERTICAL);
-        mainLayout.setBackgroundColor(Color.parseColor("#f5f5f5"));
+        mainLayout.setBackgroundColor(Color.BLACK);
         mainLayout.setPadding(16, 16, 16, 16);
         
+        // Title
         TextView title = new TextView(this);
-        title.setText("પાણી સમયપત્રક સેટિંગ્સ");
-        title.setTextSize(22);
-        title.setTextColor(Color.parseColor("#222222"));
-        title.setPadding(0, 0, 0, 16);
+        title.setText("પાણી સમયપત્રક");
+        title.setTextSize(24);
+        title.setTextColor(Color.WHITE);
+        title.setTypeface(null, android.graphics.Typeface.BOLD);
+        title.setPadding(0, 0, 0, 24);
         mainLayout.addView(title);
         
-        LinearLayout settingsPanel = new LinearLayout(this);
-        settingsPanel.setOrientation(LinearLayout.VERTICAL);
-        settingsPanel.setBackgroundColor(Color.WHITE);
-        settingsPanel.setPadding(16, 16, 16, 16);
-        settingsPanel.setLayoutParams(new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.WRAP_CONTENT
-        ));
+        // Schedule Settings Card
+        LinearLayout settingsCard = createCard();
+        addCardTitle(settingsCard, "⚙️ સમયપત્રક સેટિંગ્સ");
         
-        addSectionTitle(settingsPanel, "સમયપત્રક સેટિંગ્સ (Schedule Settings)");
-        
-        CheckBox cbSwap = new CheckBox(this);
-        cbSwap.setText("મફત/સોસાયટી અદલાબદલી (Persistent Swap)");
+        CheckBox cbSwap = createCheckBox("મફત/સોસાયટી અદલાબદલી (Swap)");
         cbSwap.setChecked(prefs.getBoolean(KEY_SWAP_MS, false));
         cbSwap.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
@@ -109,10 +103,9 @@ public class MainActivity extends Activity {
                 refreshAll();
             }
         });
-        settingsPanel.addView(cbSwap);
+        settingsCard.addView(cbSwap);
         
-        CheckBox cbTankPersist = new CheckBox(this);
-        cbTankPersist.setText("ટાંકી ભરવાની મોડ (Persistent - All days)");
+        CheckBox cbTankPersist = createCheckBox("ટાંકી ભરવાની મોડ (Persistent)");
         cbTankPersist.setChecked(prefs.getBoolean(KEY_TANK_FILL_PERSIST, false));
         cbTankPersist.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
@@ -121,10 +114,9 @@ public class MainActivity extends Activity {
                 refreshAll();
             }
         });
-        settingsPanel.addView(cbTankPersist);
+        settingsCard.addView(cbTankPersist);
         
-        CheckBox cbTankTemp = new CheckBox(this);
-        cbTankTemp.setText("ટાંકો ભરાઈ રહ્યો છે (Today only)");
+        CheckBox cbTankTemp = createCheckBox("ટાંકો ભરાઈ રહ્યો છે (Today Only)");
         cbTankTemp.setChecked(prefs.getBoolean(KEY_TANK_FILL_TEMP, false));
         cbTankTemp.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
@@ -133,96 +125,155 @@ public class MainActivity extends Activity {
                 refreshAll();
             }
         });
-        settingsPanel.addView(cbTankTemp);
+        settingsCard.addView(cbTankTemp);
         
-        addDivider(settingsPanel);
-        addSectionTitle(settingsPanel, "નોટિફિકેશન સેટિંગ્સ (Notifications)");
+        mainLayout.addView(settingsCard);
         
-        CheckBox cbMorning = new CheckBox(this);
-        cbMorning.setText("સવારના 7:45 નો એલર્ટ (Morning Source Alert)");
+        // Spacer
+        View spacer = new View(this);
+        spacer.setLayoutParams(new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, 16));
+        mainLayout.addView(spacer);
+        
+        // WebView for schedules - FIXED HEIGHT
+        webView = new WebView(this);
+        webView.setBackgroundColor(Color.BLACK);
+        WebSettings ws = webView.getSettings();
+        ws.setJavaScriptEnabled(false);
+        ws.setSupportZoom(false);
+        
+        LinearLayout.LayoutParams webParams = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        );
+        webParams.setMargins(0, 0, 0, 16);
+        webView.setLayoutParams(webParams);
+        
+        mainLayout.addView(webView);
+        
+        // Notification Settings Expandable Section
+        final Button btnToggleNotif = new Button(this);
+        btnToggleNotif.setText(notifExpanded ? "🔼 Hide Notifications" : "🔽 Notification Settings");
+        btnToggleNotif.setTextColor(Color.WHITE);
+        btnToggleNotif.setBackgroundColor(Color.parseColor("#1a1a1a"));
+        btnToggleNotif.setTextSize(16);
+        btnToggleNotif.setPadding(16, 24, 16, 24);
+        btnToggleNotif.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                notifExpanded = !notifExpanded;
+                prefs.edit().putBoolean(KEY_NOTIF_EXPANDED, notifExpanded).apply();
+                notifContainer.setVisibility(notifExpanded ? View.VISIBLE : View.GONE);
+                btnToggleNotif.setText(notifExpanded ? "🔼 Hide Notifications" : "🔽 Notification Settings");
+            }
+        });
+        mainLayout.addView(btnToggleNotif);
+        
+        // Notification Container (Expandable)
+        notifContainer = createCard();
+        notifContainer.setVisibility(notifExpanded ? View.VISIBLE : View.GONE);
+        addCardTitle(notifContainer, "🔔 એલર્ટ સેટિંગ્સ");
+        
+        // Morning Alert
+        CheckBox cbMorning = createCheckBox("સવારના 7:45 નો એલર્ટ");
         cbMorning.setChecked(prefs.getBoolean(KEY_MORNING_ALERT, false));
         cbMorning.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                if (isChecked && !checkNotificationPermissions()) {
-                    buttonView.setChecked(false);
-                    return;
-                }
                 prefs.edit().putBoolean(KEY_MORNING_ALERT, isChecked).apply();
                 scheduleMorningAlert(isChecked);
                 refreshAll();
             }
         });
-        settingsPanel.addView(cbMorning);
+        notifContainer.addView(cbMorning);
         
-        Spinner spnMorningSource = new Spinner(this);
-        ArrayAdapter<String> sourceAdapter = new ArrayAdapter<String>(this, 
+        // Source Selection
+        TextView lblSource = createLabel("પાણીનો સ્ત્રોત:");
+        notifContainer.addView(lblSource);
+        
+        Spinner spnSource = new Spinner(this);
+        ArrayAdapter<String> adapter = new ArrayAdapter<String>(this, 
             android.R.layout.simple_spinner_item, SOURCE_LABELS);
-        sourceAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spnMorningSource.setAdapter(sourceAdapter);
-        spnMorningSource.setSelection(prefs.getInt(KEY_MORNING_SOURCE, 0));
-        spnMorningSource.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spnSource.setAdapter(adapter);
+        spnSource.setBackgroundColor(Color.parseColor("#2a2a2a"));
+        spnSource.setSelection(prefs.getInt(KEY_MORNING_SOURCE, 0));
+        spnSource.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 prefs.edit().putInt(KEY_MORNING_SOURCE, position).apply();
-                if (prefs.getBoolean(KEY_MORNING_ALERT, false)) {
-                    scheduleMorningAlert(true);
-                }
+                ((TextView) parent.getChildAt(0)).setTextColor(Color.WHITE);
+                scheduleMorningAlert(prefs.getBoolean(KEY_MORNING_ALERT, false));
             }
             public void onNothingSelected(AdapterView<?> parent) {}
         });
-        settingsPanel.addView(spnMorningSource);
+        notifContainer.addView(spnSource);
         
-        tvNextAlert = new TextView(this);
-        tvNextAlert.setTextSize(12);
-        tvNextAlert.setTextColor(Color.parseColor("#666666"));
-        tvNextAlert.setPadding(0, 8, 0, 0);
-        settingsPanel.addView(tvNextAlert);
+        addDivider(notifContainer);
         
-        addDivider(settingsPanel);
+        // Area Selection Header
+        TextView lblAreas = createLabel("તમારા વિસ્તારો (Select areas):");
+        notifContainer.addView(lblAreas);
         
-        CheckBox cbArea = new CheckBox(this);
-        cbArea.setText("મારા વિસ્તારનો એલર્ટ (My Area Alert)");
-        cbArea.setChecked(prefs.getBoolean(KEY_AREA_ALERT, false));
-        cbArea.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+        // Area Checkboxes
+        CheckBox cbYadav = createCheckBox("યાદવ નગરી + ચૌધરી ફરીયો");
+        cbYadav.setChecked(prefs.getBoolean(KEY_AREA_YADAV, false));
+        cbYadav.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                if (isChecked && !checkNotificationPermissions()) {
-                    buttonView.setChecked(false);
-                    return;
-                }
-                prefs.edit().putBoolean(KEY_AREA_ALERT, isChecked).apply();
-                scheduleAreaAlerts(isChecked);
-                refreshAll();
+                prefs.edit().putBoolean(KEY_AREA_YADAV, isChecked).apply();
+                scheduleAreaAlerts();
             }
         });
-        settingsPanel.addView(cbArea);
+        notifContainer.addView(cbYadav);
         
-        Spinner spnArea = new Spinner(this);
-        ArrayAdapter<String> areaAdapter = new ArrayAdapter<String>(this,
-            android.R.layout.simple_spinner_item, AREA_LABELS);
-        areaAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spnArea.setAdapter(areaAdapter);
-        spnArea.setSelection(prefs.getInt(KEY_MY_AREA, 0));
-        spnArea.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                prefs.edit().putInt(KEY_MY_AREA, position).apply();
-                scheduleAreaAlerts(prefs.getBoolean(KEY_AREA_ALERT, false));
-                refreshAll();
+        CheckBox cbMafat = createCheckBox("મફત નગરી");
+        cbMafat.setChecked(prefs.getBoolean(KEY_AREA_MAFAT, false));
+        cbMafat.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                prefs.edit().putBoolean(KEY_AREA_MAFAT, isChecked).apply();
+                scheduleAreaAlerts();
             }
-            public void onNothingSelected(AdapterView<?> parent) {}
         });
-        settingsPanel.addView(spnArea);
+        notifContainer.addView(cbMafat);
         
+        CheckBox cbSociety = createCheckBox("સોસાયટી");
+        cbSociety.setChecked(prefs.getBoolean(KEY_AREA_SOCIETY, false));
+        cbSociety.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                prefs.edit().putBoolean(KEY_AREA_SOCIETY, isChecked).apply();
+                scheduleAreaAlerts();
+            }
+        });
+        notifContainer.addView(cbSociety);
+        
+        CheckBox cbRemaining = createCheckBox("બાકીનો વિસ્તાર");
+        cbRemaining.setChecked(prefs.getBoolean(KEY_AREA_REMAINING, false));
+        cbRemaining.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                prefs.edit().putBoolean(KEY_AREA_REMAINING, isChecked).apply();
+                scheduleAreaAlerts();
+            }
+        });
+        notifContainer.addView(cbRemaining);
+        
+        // Minutes Before
         LinearLayout minutesRow = new LinearLayout(this);
         minutesRow.setOrientation(LinearLayout.HORIZONTAL);
-        TextView lblMin = new TextView(this);
-        lblMin.setText("મિનિટ પહેલાં: ");
-        lblMin.setTextSize(14);
+        minutesRow.setPadding(0, 16, 0, 0);
+        
+        TextView lblMin = createLabel("મિનિટ પહેલાં: ");
         minutesRow.addView(lblMin);
         
         EditText etMinutes = new EditText(this);
         etMinutes.setText(String.valueOf(prefs.getInt(KEY_MINUTES_BEFORE, 15)));
+        etMinutes.setTextColor(Color.WHITE);
+        etMinutes.setBackgroundColor(Color.parseColor("#2a2a2a"));
         etMinutes.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+        etMinutes.setPadding(16, 16, 16, 16);
+        etMinutes.setLayoutParams(new LinearLayout.LayoutParams(150, ViewGroup.LayoutParams.WRAP_CONTENT));
         etMinutes.addTextChangedListener(new TextWatcher() {
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
             public void onTextChanged(CharSequence s, int start, int before, int count) {}
@@ -230,48 +281,36 @@ public class MainActivity extends Activity {
                 try {
                     int val = Integer.parseInt(s.toString());
                     prefs.edit().putInt(KEY_MINUTES_BEFORE, val).apply();
-                    scheduleAreaAlerts(prefs.getBoolean(KEY_AREA_ALERT, false));
-                    refreshAll();
+                    scheduleAreaAlerts();
                 } catch (Exception e) {}
             }
         });
-        etMinutes.setLayoutParams(new LinearLayout.LayoutParams(150, ViewGroup.LayoutParams.WRAP_CONTENT));
         minutesRow.addView(etMinutes);
-        settingsPanel.addView(minutesRow);
+        notifContainer.addView(minutesRow);
         
-        mainLayout.addView(settingsPanel);
+        // Next Alert Info
+        tvNextAlert = new TextView(this);
+        tvNextAlert.setTextSize(12);
+        tvNextAlert.setTextColor(Color.GRAY);
+        tvNextAlert.setPadding(0, 16, 0, 0);
+        notifContainer.addView(tvNextAlert);
         
-        LinearLayout webContainer = new LinearLayout(this);
-        webContainer.setOrientation(LinearLayout.VERTICAL);
-        webContainer.setPadding(0, 16, 0, 0);
-        webContainer.setLayoutParams(new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            0,
-            1.0f
-        ));
+        mainLayout.addView(notifContainer);
         
-        webView = new WebView(this);
-        webView.setBackgroundColor(Color.WHITE);
-        WebSettings ws = webView.getSettings();
-        ws.setJavaScriptEnabled(false);
-        ws.setSupportZoom(false);
-        webView.setLayoutParams(new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.MATCH_PARENT
-        ));
-        webContainer.addView(webView);
-        mainLayout.addView(webContainer);
-        
-        Button btn = new Button(this);
-        btn.setText("⌨️ Keyboard Service Settings");
-        btn.setTextSize(16);
-        btn.setOnClickListener(new View.OnClickListener() {
+        // Keyboard Button
+        Button btnKeyboard = new Button(this);
+        btnKeyboard.setText("⌨️ Keyboard Service Settings");
+        btnKeyboard.setTextColor(Color.WHITE);
+        btnKeyboard.setBackgroundColor(Color.parseColor("#1a1a1a"));
+        btnKeyboard.setTextSize(16);
+        btnKeyboard.setPadding(16, 24, 16, 24);
+        btnKeyboard.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));
             }
         });
-        mainLayout.addView(btn);
+        mainLayout.addView(btnKeyboard);
         
         scrollView.addView(mainLayout);
         setContentView(scrollView);
@@ -279,35 +318,54 @@ public class MainActivity extends Activity {
         refreshAll();
     }
     
-    private void addSectionTitle(LinearLayout parent, String text) {
+    private LinearLayout createCard() {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setBackgroundColor(Color.parseColor("#121212"));
+        card.setPadding(16, 16, 16, 16);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT);
+        params.setMargins(0, 0, 0, 16);
+        card.setLayoutParams(params);
+        return card;
+    }
+    
+    private void addCardTitle(LinearLayout parent, String text) {
         TextView tv = new TextView(this);
         tv.setText(text);
         tv.setTextSize(16);
-        tv.setTextColor(Color.parseColor("#0066cc"));
-        tv.setPadding(0, 16, 0, 8);
+        tv.setTextColor(Color.WHITE);
         tv.setTypeface(null, android.graphics.Typeface.BOLD);
+        tv.setPadding(0, 0, 0, 16);
         parent.addView(tv);
+    }
+    
+    private CheckBox createCheckBox(String text) {
+        CheckBox cb = new CheckBox(this);
+        cb.setText(text);
+        cb.setTextColor(Color.WHITE);
+        cb.setTextSize(14);
+        cb.setPadding(8, 12, 8, 12);
+        return cb;
+    }
+    
+    private TextView createLabel(String text) {
+        TextView tv = new TextView(this);
+        tv.setText(text);
+        tv.setTextColor(Color.LTGRAY);
+        tv.setTextSize(14);
+        tv.setPadding(0, 8, 0, 8);
+        return tv;
     }
     
     private void addDivider(LinearLayout parent) {
         View v = new View(this);
         v.setLayoutParams(new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, 1));
-        v.setBackgroundColor(Color.LTGRAY);
+        v.setBackgroundColor(Color.parseColor("#333333"));
         v.setPadding(0, 16, 0, 16);
         parent.addView(v);
-    }
-    
-    private boolean checkNotificationPermissions() {
-        // API 28 compatible - no runtime permission checks needed
-        return true;
-    }
-    
-    private void showMessage(String msg) {
-        new AlertDialog.Builder(this)
-            .setMessage(msg)
-            .setPositiveButton("OK", null)
-            .show();
     }
     
     private void refreshAll() {
@@ -316,21 +374,24 @@ public class MainActivity extends Activity {
     }
     
     private void updateNextAlertInfo() {
-        StringBuilder sb = new StringBuilder("આગામી એલર્ટ:\n");
+        StringBuilder sb = new StringBuilder();
         
         if (prefs.getBoolean(KEY_MORNING_ALERT, false)) {
-            sb.append("• સવારે 7:45 (Morning 7:45 AM)\n");
+            sb.append("• સવારે 7:45 (Morning Alert)\n");
         }
         
-        if (prefs.getBoolean(KEY_AREA_ALERT, false)) {
-            int areaIdx = prefs.getInt(KEY_MY_AREA, 0);
+        boolean anyArea = prefs.getBoolean(KEY_AREA_YADAV, false) || 
+                         prefs.getBoolean(KEY_AREA_MAFAT, false) ||
+                         prefs.getBoolean(KEY_AREA_SOCIETY, false) || 
+                         prefs.getBoolean(KEY_AREA_REMAINING, false);
+        
+        if (anyArea) {
             int mins = prefs.getInt(KEY_MINUTES_BEFORE, 15);
-            String areaName = AREA_LABELS[areaIdx];
-            sb.append("• ").append(areaName).append(" (").append(mins).append(" min before)\n");
+            sb.append("• Area alerts (").append(mins).append(" min before)\n");
         }
         
-        if (!prefs.getBoolean(KEY_MORNING_ALERT, false) && !prefs.getBoolean(KEY_AREA_ALERT, false)) {
-            sb.append("કોઈ એલર્ટ સેટ નથી (No alerts set)");
+        if (sb.length() == 0) {
+            sb.append("કોઈ એલર્ટ સેટ નથી");
         }
         
         tvNextAlert.setText(sb.toString());
@@ -367,22 +428,18 @@ public class MainActivity extends Activity {
         }
     }
     
-    private void scheduleAreaAlerts(boolean enable) {
+    private void scheduleAreaAlerts() {
         AlarmManager am = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
         
-        for (int i = 0; i < 4; i++) {
+        // Cancel all existing area alarms
+        for (int i = 0; i < 10; i++) {
             Intent intent = new Intent(this, NotificationReceiver.class);
             PendingIntent pi = PendingIntent.getBroadcast(this, REQ_CODE_AREA_BASE + i, intent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
             if (am != null) am.cancel(pi);
         }
         
-        if (!enable) return;
-        
-        int areaIdx = prefs.getInt(KEY_MY_AREA, 0);
         int minsBefore = prefs.getInt(KEY_MINUTES_BEFORE, 15);
-        String targetArea = AREAS[areaIdx];
-        
         Calendar now = Calendar.getInstance();
         int todayDay = now.get(Calendar.DAY_OF_MONTH);
         long diffMillis = now.getTimeInMillis() - SEED_DATE.getTimeInMillis();
@@ -390,89 +447,125 @@ public class MainActivity extends Activity {
         
         boolean firstHalf = todayDay <= 15;
         boolean swap = prefs.getBoolean(KEY_SWAP_MS, false);
-        boolean tankFillToday = prefs.getBoolean(KEY_TANK_FILL_TEMP, false) || 
-                               prefs.getBoolean(KEY_TANK_FILL_PERSIST, false);
+        boolean tankFill = prefs.getBoolean(KEY_TANK_FILL_TEMP, false) || 
+                          prefs.getBoolean(KEY_TANK_FILL_PERSIST, false);
         
         String first = (days % 2 == 0) ? "society" : "mafat";
         if (swap) first = first.equals("society") ? "mafat" : "society";
         String second = first.equals("society") ? "mafat" : "society";
         
-        int[] startHours = new int[4];
-        int[] startMins = new int[4];
-        String[] slotAreas = new String[4];
+        int alarmIdx = 0;
         
+        // Generate slots and check each against selected areas
         if (firstHalf) {
-            if (tankFillToday) {
-                startHours[0] = 6; startMins[0] = 0; slotAreas[0] = "remaining";
-                startHours[1] = 9; startMins[1] = 0; slotAreas[1] = "tank";
-                startHours[2] = 11; startMins[2] = 0; slotAreas[2] = "yadav_" + first;
-                startHours[3] = 12; startMins[3] = 30; slotAreas[3] = second;
+            if (tankFill) {
+                // 06:00 - Remaining
+                if (prefs.getBoolean(KEY_AREA_REMAINING, false)) {
+                    alarmIdx = scheduleIfPossible(am, now, 6, 0, minsBefore, "બાકીનો વિસ્તાર", alarmIdx);
+                }
+                // 11:00 - Yadav + First
+                if (prefs.getBoolean(KEY_AREA_YADAV, false)) {
+                    String label = "યાદવ નગરી" + (first.equals("society") ? " + સોસાયટી" : " + મફત નગરી");
+                    alarmIdx = scheduleIfPossible(am, now, 11, 0, minsBefore, label, alarmIdx);
+                }
+                // 12:30 - Second
+                if (second.equals("society") && prefs.getBoolean(KEY_AREA_SOCIETY, false)) {
+                    alarmIdx = scheduleIfPossible(am, now, 12, 30, minsBefore, "સોસાયટી", alarmIdx);
+                } else if (second.equals("mafat") && prefs.getBoolean(KEY_AREA_MAFAT, false)) {
+                    alarmIdx = scheduleIfPossible(am, now, 12, 30, minsBefore, "મફત નગરી", alarmIdx);
+                }
             } else {
-                startHours[0] = 6; startMins[0] = 0; slotAreas[0] = "remaining";
-                startHours[1] = 9; startMins[1] = 0; slotAreas[1] = first;
-                startHours[2] = 10; startMins[2] = 30; slotAreas[2] = second;
-                startHours[3] = 12; startMins[3] = 0; slotAreas[3] = "yadav";
+                // 06:00 - Remaining
+                if (prefs.getBoolean(KEY_AREA_REMAINING, false)) {
+                    alarmIdx = scheduleIfPossible(am, now, 6, 0, minsBefore, "બાકીનો વિસ્તાર", alarmIdx);
+                }
+                // 09:00 - First
+                if (first.equals("society") && prefs.getBoolean(KEY_AREA_SOCIETY, false)) {
+                    alarmIdx = scheduleIfPossible(am, now, 9, 0, minsBefore, "સોસાયટી", alarmIdx);
+                } else if (first.equals("mafat") && prefs.getBoolean(KEY_AREA_MAFAT, false)) {
+                    alarmIdx = scheduleIfPossible(am, now, 9, 0, minsBefore, "મફત નગરી", alarmIdx);
+                }
+                // 10:30 - Second
+                if (second.equals("society") && prefs.getBoolean(KEY_AREA_SOCIETY, false)) {
+                    alarmIdx = scheduleIfPossible(am, now, 10, 30, minsBefore, "સોસાયટી", alarmIdx);
+                } else if (second.equals("mafat") && prefs.getBoolean(KEY_AREA_MAFAT, false)) {
+                    alarmIdx = scheduleIfPossible(am, now, 10, 30, minsBefore, "મફત નગરી", alarmIdx);
+                }
+                // 12:00 - Yadav
+                if (prefs.getBoolean(KEY_AREA_YADAV, false)) {
+                    alarmIdx = scheduleIfPossible(am, now, 12, 0, minsBefore, "યાદવ નગરી", alarmIdx);
+                }
             }
         } else {
-            startHours[0] = 6; startMins[0] = 0; slotAreas[0] = "yadav_" + first;
-            startHours[1] = 7; startMins[1] = 30; slotAreas[1] = second;
-            startHours[2] = 9; startMins[2] = 0; slotAreas[2] = "remaining";
-            startHours[3] = -1;
-        }
-        
-        int alarmIdx = 0;
-        for (int i = 0; i < 4 && startHours[i] >= 0 && alarmIdx < 3; i++) {
-            if (matchesArea(slotAreas[i], targetArea)) {
-                Calendar cal = Calendar.getInstance();
-                cal.set(Calendar.HOUR_OF_DAY, startHours[i]);
-                cal.set(Calendar.MINUTE, startMins[i]);
-                cal.set(Calendar.SECOND, 0);
-                cal.add(Calendar.MINUTE, -minsBefore);
-                
-                if (cal.getTimeInMillis() > now.getTimeInMillis()) {
-                    Intent intent = new Intent(this, NotificationReceiver.class);
-                    intent.setAction("AREA_ALERT");
-                    intent.putExtra("area", AREA_LABELS[areaIdx]);
-                    intent.putExtra("time", String.format("%02d:%02d", startHours[i], startMins[i]));
-                    intent.putExtra("notif_id", REQ_CODE_AREA_BASE + alarmIdx);
-                    
-                    PendingIntent pi = PendingIntent.getBroadcast(this, REQ_CODE_AREA_BASE + alarmIdx, intent,
-                        PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-                    
-                    if (am != null) {
-                        if (Build.VERSION.SDK_INT >= 23) {
-                            am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(), pi);
-                        } else {
-                            am.setExact(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(), pi);
-                        }
-                    }
-                    alarmIdx++;
-                }
+            // Second half of month
+            // 06:00 - Yadav + First
+            if (prefs.getBoolean(KEY_AREA_YADAV, false)) {
+                alarmIdx = scheduleIfPossible(am, now, 6, 0, minsBefore, "યાદવ નગરી", alarmIdx);
+            }
+            if (first.equals("society") && prefs.getBoolean(KEY_AREA_SOCIETY, false)) {
+                alarmIdx = scheduleIfPossible(am, now, 6, 0, minsBefore, "સોસાયટી (06:00)", alarmIdx);
+            } else if (first.equals("mafat") && prefs.getBoolean(KEY_AREA_MAFAT, false)) {
+                alarmIdx = scheduleIfPossible(am, now, 6, 0, minsBefore, "મફત નગરી (06:00)", alarmIdx);
+            }
+            // 07:30 - Second
+            if (second.equals("society") && prefs.getBoolean(KEY_AREA_SOCIETY, false)) {
+                alarmIdx = scheduleIfPossible(am, now, 7, 30, minsBefore, "સોસાયટી", alarmIdx);
+            } else if (second.equals("mafat") && prefs.getBoolean(KEY_AREA_MAFAT, false)) {
+                alarmIdx = scheduleIfPossible(am, now, 7, 30, minsBefore, "મફત નગરી", alarmIdx);
+            }
+            // 09:00 - Remaining
+            if (prefs.getBoolean(KEY_AREA_REMAINING, false)) {
+                alarmIdx = scheduleIfPossible(am, now, 9, 0, minsBefore, "બાકીનો વિસ્તાર", alarmIdx);
             }
         }
     }
     
-    private boolean matchesArea(String slot, String target) {
-        if (target.equals("All Areas")) return true;
-        if (slot.contains(target.toLowerCase())) return true;
-        if (target.equals("Remaining") && slot.equals("remaining")) return true;
-        if (target.equals("Yadav") && slot.contains("yadav")) return true;
-        if (target.equals("Mafat") && slot.equals("mafat")) return true;
-        if (target.equals("Society") && slot.equals("society")) return true;
-        return false;
+    private int scheduleIfPossible(AlarmManager am, Calendar now, int hour, int minute, 
+                                   int minsBefore, String areaName, int alarmIdx) {
+        Calendar cal = Calendar.getInstance();
+        cal.set(Calendar.HOUR_OF_DAY, hour);
+        cal.set(Calendar.MINUTE, minute);
+        cal.set(Calendar.SECOND, 0);
+        cal.add(Calendar.MINUTE, -minsBefore);
+        
+        if (cal.getTimeInMillis() > now.getTimeInMillis() && alarmIdx < 10) {
+            Intent intent = new Intent(this, NotificationReceiver.class);
+            intent.setAction("AREA_ALERT");
+            intent.putExtra("area", areaName);
+            intent.putExtra("time", String.format("%02d:%02d", hour, minute));
+            intent.putExtra("notif_id", REQ_CODE_AREA_BASE + alarmIdx);
+            
+            PendingIntent pi = PendingIntent.getBroadcast(this, REQ_CODE_AREA_BASE + alarmIdx, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+            
+            if (am != null) {
+                if (Build.VERSION.SDK_INT >= 23) {
+                    am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(), pi);
+                } else {
+                    am.setExact(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(), pi);
+                }
+            }
+            return alarmIdx + 1;
+        }
+        return alarmIdx;
     }
     
     private String getScheduleHTML() {
         StringBuilder html = new StringBuilder();
         html.append("<!DOCTYPE html><html><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width,initial-scale=1'>");
-        html.append("<style>body{font-family:system-ui;background:rgb(245,245,245);padding:12px;margin:0}");
-        html.append(".card{background:white;border-radius:12px;padding:16px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,.08)}");
-        html.append("h2{font-size:18px;margin:0 0 12px 0;color:rgb(34,34,34)}.badge{color:rgb(0,102,204);background:rgb(230,243,255);padding:4px 8px;border-radius:6px;font-size:13px;font-weight:600}");
-        html.append(".date{color:rgb(102,102,102);font-size:13px;margin:8px 0 12px 0}");
-        html.append(".slot{display:flex;padding:10px 0;border-top:1px solid rgb(238,238,238)}.slot:first-child{border-top:none}");
-        html.append(".time{min-width:90px;font-weight:600;color:rgb(0,102,204);font-size:14px}");
-        html.append(".label{flex:1;color:rgb(51,51,51);font-size:14px}");
-        html.append(".note{background:rgb(255,249,230);padding:12px;border-radius:8px;font-size:12px;color:rgb(133,100,4);margin-top:12px}</style></head><body>");
+        // AMOLED Dark CSS - Pure black background
+        html.append("<style>");
+        html.append("body{font-family:system-ui;background:#000000;padding:0;margin:0;color:#ffffff}");
+        html.append(".card{background:#121212;border:1px solid #333333;border-radius:12px;padding:16px;margin-bottom:16px}");
+        html.append("h2{font-size:18px;margin:0 0 12px 0;color:#ffffff;font-weight:bold}");
+        html.append(".badge{color:#4fc3f7;background:#0d2b3a;padding:4px 10px;border-radius:6px;font-size:13px;font-weight:600;display:inline-block;margin-bottom:8px}");
+        html.append(".date{color:#aaaaaa;font-size:13px;margin:8px 0 12px 0}");
+        html.append(".slot{display:flex;padding:12px 0;border-top:1px solid #333333}");
+        html.append(".slot:first-child{border-top:none}");
+        html.append(".time{min-width:90px;font-weight:600;color:#4fc3f7;font-size:14px}");
+        html.append(".label{flex:1;color:#ffffff;font-size:14px;padding-left:8px}");
+        html.append(".note{background:#1a1a1a;padding:12px;border-radius:8px;font-size:12px;color:#888888;margin-top:12px;border-left:3px solid #4fc3f7}");
+        html.append("</style></head><body>");
         
         html.append(getDayCardHtml(true));
         html.append(getDayCardHtml(false));
@@ -493,7 +586,7 @@ public class MainActivity extends Activity {
         boolean firstHalf = dayOfMonth <= 15;
         boolean swap = prefs.getBoolean(KEY_SWAP_MS, false);
         
-        boolean tankFill;
+                boolean tankFill;
         if (isToday) {
             tankFill = prefs.getBoolean(KEY_TANK_FILL_TEMP, false) || 
                       prefs.getBoolean(KEY_TANK_FILL_PERSIST, false);
@@ -535,7 +628,7 @@ public class MainActivity extends Activity {
         card.append("<span class='badge'>").append(source).append("</span>");
         card.append("<div class='date'>").append(dateStr).append("</div>");
         card.append(slots);
-        card.append("<div class='note'>વીજળી, મોટર સમસ્યાથી સમય બદલાઈ શકે છે</div></div>");
+        card.append("<div class='note'>ℹ️ બાકીનો વિસ્તાર = વથાણ ચોક, બજાર ચોક અને નજીકના વિસ્તારો</div></div>");
         
         return card.toString();
     }
@@ -544,3 +637,4 @@ public class MainActivity extends Activity {
         sb.append("<div class='slot'><div class='time'>").append(time).append("</div><div class='label'>").append(label).append("</div></div>");
     }
 }
+
