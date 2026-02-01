@@ -299,20 +299,7 @@ public class MainActivity extends Activity {
     }
     
     private boolean checkNotificationPermissions() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) 
-                != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                requestPermissions(new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 1);
-                return false;
-            }
-        }
-        AlarmManager am = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !am.canScheduleExactAlarms()) {
-            Intent intent = new Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM);
-            startActivity(intent);
-            showMessage("કૃપા કરીને એકઝેક્ટ એલાર્મની પરવાનગી આપો (Please allow exact alarms)");
-            return false;
-        }
+        // API 28 compatible - no runtime permission checks needed
         return true;
     }
     
@@ -372,7 +359,7 @@ public class MainActivity extends Activity {
         }
         
         if (am != null) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (Build.VERSION.SDK_INT >= 23) {
                 am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(), pi);
             } else {
                 am.setExact(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(), pi);
@@ -453,7 +440,7 @@ public class MainActivity extends Activity {
                         PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
                     
                     if (am != null) {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        if (Build.VERSION.SDK_INT >= 23) {
                             am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(), pi);
                         } else {
                             am.setExact(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(), pi);
